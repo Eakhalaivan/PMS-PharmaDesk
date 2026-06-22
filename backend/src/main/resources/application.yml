@@ -1,8 +1,6 @@
 spring:
   application:
     name: backend
-server:
-  port: ${PORT:8080}
   datasource:
     url: ${SPRING_DATASOURCE_URL}
     username: ${SPRING_DATASOURCE_USERNAME}
@@ -31,6 +29,9 @@ server:
           auth: true
           starttls:
             enable: true
+
+server:
+  port: ${PORT:8080}
 
 cors:
   allowed-origin: ${CORS_ALLOWED_ORIGIN:https://pms-eta-six.vercel.app}

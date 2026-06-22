@@ -39,45 +39,59 @@ public class AnalyticsService {
 
     public AnalyticsDashboardDTO getDashboardSummary(LocalDateTime startDate, LocalDateTime endDate) {
         AnalyticsDashboardDTO dashboard = new AnalyticsDashboardDTO();
-        
-        // Calculate Previous Period Range (Same duration prior)
-        long daysBetween = ChronoUnit.DAYS.between(startDate, endDate) + 1;
-        LocalDateTime prevStartDate = startDate.minusDays(daysBetween);
-        LocalDateTime prevEndDate = endDate.minusDays(daysBetween);
+        try {
+            // Calculate Previous Period Range (Same duration prior)
+            long daysBetween = ChronoUnit.DAYS.between(startDate, endDate) + 1;
+            LocalDateTime prevStartDate = startDate.minusDays(daysBetween);
+            LocalDateTime prevEndDate = endDate.minusDays(daysBetween);
 
-        // 1. Total Sales Revenue
-        BigDecimal currentRev = getRevenue(startDate, endDate);
-        BigDecimal prevRev = getRevenue(prevStartDate, prevEndDate);
-        dashboard.setTotalSalesRevenue(calculateKPI(currentRev, prevRev));
+            // 1. Total Sales Revenue
+            BigDecimal currentRev = getRevenue(startDate, endDate);
+            BigDecimal prevRev = getRevenue(prevStartDate, prevEndDate);
+            dashboard.setTotalSalesRevenue(calculateKPI(currentRev, prevRev));
 
-        // 2. Total Units Dispensed
-        BigDecimal currentUnits = new BigDecimal(getUnitsDispensed(startDate, endDate));
-        BigDecimal prevUnits = new BigDecimal(getUnitsDispensed(prevStartDate, prevEndDate));
-        dashboard.setTotalUnitsDispensed(calculateKPI(currentUnits, prevUnits));
+            // 2. Total Units Dispensed
+            BigDecimal currentUnits = new BigDecimal(getUnitsDispensed(startDate, endDate));
+            BigDecimal prevUnits = new BigDecimal(getUnitsDispensed(prevStartDate, prevEndDate));
+            dashboard.setTotalUnitsDispensed(calculateKPI(currentUnits, prevUnits));
 
-        // 3. Total Transactions
-        BigDecimal currentTxns = new BigDecimal(getTransactions(startDate, endDate));
-        BigDecimal prevTxns = new BigDecimal(getTransactions(prevStartDate, prevEndDate));
-        dashboard.setTotalTransactions(calculateKPI(currentTxns, prevTxns));
+            // 3. Total Transactions
+            BigDecimal currentTxns = new BigDecimal(getTransactions(startDate, endDate));
+            BigDecimal prevTxns = new BigDecimal(getTransactions(prevStartDate, prevEndDate));
+            dashboard.setTotalTransactions(calculateKPI(currentTxns, prevTxns));
 
-        // 4. Average Transaction Value
-        BigDecimal currentAvgTxn = currentTxns.compareTo(BigDecimal.ZERO) > 0 ? currentRev.divide(currentTxns, 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
-        BigDecimal prevAvgTxn = prevTxns.compareTo(BigDecimal.ZERO) > 0 ? prevRev.divide(prevTxns, 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
-        dashboard.setAverageTransactionValue(calculateKPI(currentAvgTxn, prevAvgTxn));
+            // 4. Average Transaction Value
+            BigDecimal currentAvgTxn = currentTxns.compareTo(BigDecimal.ZERO) > 0
+                    ? currentRev.divide(currentTxns, 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+            BigDecimal prevAvgTxn = prevTxns.compareTo(BigDecimal.ZERO) > 0
+                    ? prevRev.divide(prevTxns, 2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+            dashboard.setAverageTransactionValue(calculateKPI(currentAvgTxn, prevAvgTxn));
 
-        // 5. Total Returns Value (Mocked for now as returns aren't fully implemented in PharmacyBill)
-        dashboard.setTotalReturnsValue(calculateKPI(BigDecimal.ZERO, BigDecimal.ZERO));
+            // 5. Total Returns Value
+            dashboard.setTotalReturnsValue(calculateKPI(BigDecimal.ZERO, BigDecimal.ZERO));
 
-        // 6. Net Revenue
-        dashboard.setNetRevenue(calculateKPI(currentRev, prevRev)); // Equals gross for now
+            // 6. Net Revenue
+            dashboard.setNetRevenue(calculateKPI(currentRev, prevRev));
 
-        // Fast & Slow Moving
-        dashboard.setFastMovingMedicines(getFastMovingMedicines(startDate, endDate, 5));
-        dashboard.setSlowMovingMedicines(getSlowMovingMedicines(startDate, endDate, 5));
+            // Fast & Slow Moving
+            dashboard.setFastMovingMedicines(getFastMovingMedicines(startDate, endDate, 5));
+            dashboard.setSlowMovingMedicines(getSlowMovingMedicines(startDate, endDate, 5));
 
-        // Revenue Trend
-        dashboard.setRevenueTrend(getRevenueTrend(startDate, endDate));
-
+            // Revenue Trend
+            dashboard.setRevenueTrend(getRevenueTrend(startDate, endDate));
+        } catch (Exception e) {
+            // Return a safe empty dashboard when no data exists (fresh DB)
+            KPIDTO zero = calculateKPI(BigDecimal.ZERO, BigDecimal.ZERO);
+            dashboard.setTotalSalesRevenue(zero);
+            dashboard.setTotalUnitsDispensed(zero);
+            dashboard.setTotalTransactions(zero);
+            dashboard.setAverageTransactionValue(zero);
+            dashboard.setTotalReturnsValue(zero);
+            dashboard.setNetRevenue(zero);
+            dashboard.setFastMovingMedicines(new ArrayList<>());
+            dashboard.setSlowMovingMedicines(new ArrayList<>());
+            dashboard.setRevenueTrend(new ArrayList<>());
+        }
         return dashboard;
     }
 
@@ -379,16 +393,21 @@ public class AnalyticsService {
     }
 
     private BigDecimal calculateCreditSalesPercentage(LocalDateTime start, LocalDateTime end) {
-        String sql = "SELECT COUNT(b) FROM PharmacyBill b WHERE b.billType = 'CREDIT' AND b.billingDate BETWEEN :start AND :end AND b.deleted = false";
-        Query q = entityManager.createQuery(sql);
-        q.setParameter("start", start);
-        q.setParameter("end", end);
-        long creditTxns = (long) q.getSingleResult();
-        
-        long totalTxns = getTransactions(start, end);
-        
-        if (totalTxns > 0) {
-            return new BigDecimal(creditTxns).divide(new BigDecimal(totalTxns), 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+        try {
+            String sql = "SELECT COUNT(b) FROM PharmacyBill b WHERE b.billType = 'CREDIT' AND b.billingDate BETWEEN :start AND :end AND b.deleted = false";
+            Query q = entityManager.createQuery(sql);
+            q.setParameter("start", start);
+            q.setParameter("end", end);
+            Object result = q.getSingleResult();
+            long creditTxns = result != null ? ((Number) result).longValue() : 0L;
+            
+            long totalTxns = getTransactions(start, end);
+            
+            if (totalTxns > 0) {
+                return new BigDecimal(creditTxns).divide(new BigDecimal(totalTxns), 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"));
+            }
+        } catch (Exception e) {
+            // Return zero on error (no data)
         }
         return BigDecimal.ZERO;
     }

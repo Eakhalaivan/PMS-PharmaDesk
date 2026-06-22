@@ -19,4 +19,11 @@ public interface PurchaseOrderRepository extends JpaRepository<PurchaseOrder, St
     List<PurchaseOrder> findOverduePOs(@Param("today") java.time.LocalDate today);
 
     long countByStatus(String status);
+
+    org.springframework.data.domain.Page<PurchaseOrder> findByStatus(
+            String status, org.springframework.data.domain.Pageable pageable);
+
+    org.springframework.data.domain.Page<PurchaseOrder> findByPoNumberContainingIgnoreCaseOrSupplierNameContainingIgnoreCase(
+            String poNumber, String supplierName,
+            org.springframework.data.domain.Pageable pageable);
 }

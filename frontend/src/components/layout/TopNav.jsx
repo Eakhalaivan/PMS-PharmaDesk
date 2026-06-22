@@ -9,18 +9,25 @@ export default function TopNav() {
   const [notificationCount, setNotificationCount] = useState(0);
 
   useEffect(() => {
+    // Wait until the auth context has resolved an active role
+    if (!activeRole) return;
+
     const fetchCounts = async () => {
       try {
         let count = 0;
         
         // 1. Fetch low stock count
         const lowStockRes = await pharmacyService.api.get('/pharmacy/stocks/low-stock');
-        count += lowStockRes.data?.totalElements || lowStockRes.data?.length || 0;
+        const lowStockData = lowStockRes.data?.data ?? lowStockRes.data;
+        count += Array.isArray(lowStockData)
+          ? lowStockData.length
+          : (lowStockData?.totalElements ?? lowStockData?.length ?? 0);
 
         // 2. Fetch pending POs if admin
         if (activeRole === ROLES.SYSTEM_ADMIN) {
-          const poRes = await pharmacyService.api.get('/pharmacy/purchase-orders', { params: { status: 'PENDING' } });
-          count += poRes.data?.totalElements || poRes.data?.length || 0;
+          const poRes = await pharmacyService.api.get('/pharmacy/purchase-orders', { params: { status: 'PENDING', size: 1 } });
+          const poData = poRes.data?.data ?? poRes.data;
+          count += poData?.totalElements ?? poData?.length ?? 0;
         }
         
         setNotificationCount(count);

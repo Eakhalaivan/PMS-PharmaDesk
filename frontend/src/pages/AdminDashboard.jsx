@@ -168,23 +168,25 @@ export default function AdminDashboard() {
             </div>
 
             <div className="flex-1 min-h-[250px] mb-6">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mockRevenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(val) => `₹${val/1000}k`} />
-                  <Tooltip 
-                    cursor={{ fill: '#f8fafc' }} 
-                    contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: 'none' }}
-                    formatter={(value) => [`₹${value.toLocaleString('en-IN')}`, 'Revenue']}
-                  />
-                  <Bar dataKey="revenue" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                    {mockRevenueData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index === mockRevenueData.length - 1 ? '#1a3c6e' : '#cbd5e1'} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <div style={{ width: '100%', height: 250 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={mockRevenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(val) => `₹${val/1000}k`} />
+                    <Tooltip 
+                      cursor={{ fill: '#f8fafc' }} 
+                      contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: 'none' }}
+                      formatter={(value) => [`₹${value.toLocaleString('en-IN')}`, 'Revenue']}
+                    />
+                    <Bar dataKey="revenue" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                      {mockRevenueData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={index === mockRevenueData.length - 1 ? '#1a3c6e' : '#cbd5e1'} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
 
             <div className="border-t border-slate-200 pt-5">

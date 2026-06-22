@@ -21,22 +21,40 @@ public class PurchaseOrderController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<PurchaseOrder>>> getPOs(@RequestParam(value = "status", required = false) String status) {
-        if (status != null && !status.trim().isEmpty() && !status.equalsIgnoreCase("ALL")) {
-            String dbStatus = status.toLowerCase();
-            if (status.equalsIgnoreCase("PENDING")) {
-                dbStatus = "submitted";
-            } else if (status.equalsIgnoreCase("RECEIVED")) {
-                dbStatus = "completed";
+    public ResponseEntity<ApiResponse<Object>> getPOs(
+            @RequestParam(value = "status",     required = false) String status,
+            @RequestParam(value = "searchTerm", required = false) String searchTerm,
+            @RequestParam(value = "page",       defaultValue = "0")  int page,
+            @RequestParam(value = "size",       defaultValue = "20") int size) {
+
+        org.springframework.data.domain.Pageable pageable =
+                org.springframework.data.domain.PageRequest.of(page, size,
+                        org.springframework.data.domain.Sort.by("createdAt").descending());
+
+        // TopNav badge call: ?status=PENDING&size=20 — return Page so frontend counts totalElements
+        if (status != null && !status.isBlank() && !status.equalsIgnoreCase("ALL")) {
+            String dbStatus = switch (status.toUpperCase()) {
+                case "PENDING"  -> "submitted";
+                case "RECEIVED" -> "completed";
+                default         -> status.toLowerCase();
+            };
+            java.util.List<String> valid = java.util.List.of(
+                    "draft","submitted","approved","sent","partially_received","completed","cancelled");
+            if (!valid.contains(dbStatus)) {
+                return ResponseEntity.ok(ApiResponse.success(
+                        org.springframework.data.domain.Page.empty(pageable), "No POs found"));
             }
-            
-            java.util.List<String> validStatuses = java.util.List.of("draft", "submitted", "approved", "sent", "partially_received", "completed", "cancelled");
-            if (!validStatuses.contains(dbStatus)) {
-                return ResponseEntity.ok(ApiResponse.success(java.util.List.of(), "No POs found for status: " + status));
-            }
-            return ResponseEntity.ok(ApiResponse.success(service.getPOsByStatus(dbStatus), "POs fetched"));
+            org.springframework.data.domain.Page<PurchaseOrder> poPage =
+                    service.getPOsByStatusPaged(dbStatus, pageable);
+            return ResponseEntity.ok(ApiResponse.success(poPage, "POs fetched"));
         }
-        return ResponseEntity.ok(ApiResponse.success(service.getAllPos(), "POs fetched"));
+
+        // Normal list call with optional searchTerm
+        org.springframework.data.domain.Page<PurchaseOrder> poPage =
+                (searchTerm != null && !searchTerm.isBlank())
+                        ? service.searchPOs(searchTerm.trim(), pageable)
+                        : service.getAllPosPaged(pageable);
+        return ResponseEntity.ok(ApiResponse.success(poPage, "POs fetched"));
     }
 
     @GetMapping("/{id}")

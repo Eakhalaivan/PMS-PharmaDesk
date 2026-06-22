@@ -50,7 +50,7 @@ export const fetchWithRetry = async (url, options = {}, retries = 2) => {
       const response = await api({ url, ...options });
       return response;
     } catch (error) {
-      if (attempt === retries || (error.response && error.response.status >= 400 && error.response.status < 500 && error.response.status !== 429)) {
+      if (attempt === retries || (error.response && error.response.status !== 429 && (error.response.status >= 400))) {
         throw error;
       }
       console.warn(`Fetch failed (attempt ${attempt + 1}/${retries + 1}). Retrying in ${delays[attempt]}ms...`);

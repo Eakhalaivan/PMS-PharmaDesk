@@ -303,6 +303,18 @@ public class MedicineController {
                 .map(m -> {
                     MedicineDTO dto = medicineMapper.toDto(m);
                     dto.setCurrentStock(stockMap.getOrDefault(m.getId(), 0));
+
+                    // Populate supplier name and lastUpdated from the most recent active batch
+                    List<MedicineStock> batches = stockRepository.findByMedicineId(m.getId());
+                    batches.stream()
+                            .filter(s -> s.getSupplier() != null)
+                            .findFirst()
+                            .ifPresent(s -> dto.setSupplierVendor(s.getSupplier().getName()));
+                    batches.stream()
+                            .filter(b -> b.getCreatedAt() != null)
+                            .max(java.util.Comparator.comparing(MedicineStock::getCreatedAt))
+                            .ifPresent(b -> dto.setLastUpdated(b.getCreatedAt().toLocalDate().toString()));
+
                     return dto;
                 })
                 .toList();

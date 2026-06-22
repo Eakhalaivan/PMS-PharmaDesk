@@ -49,7 +49,14 @@ public class SecurityConfig {
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(exceptions -> exceptions
                 .authenticationEntryPoint((request, response, authException) -> {
-                    response.sendError(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+                    response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"success\":false,\"message\":\"Authentication required\"}");
+                })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    response.setStatus(jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"success\":false,\"message\":\"Access denied: insufficient permissions\"}");
                 })
             )
             .authorizeHttpRequests(auth -> auth
@@ -60,6 +67,11 @@ public class SecurityConfig {
                 // Admin-only endpoints
                 .requestMatchers("/api/auth/users", "/api/auth/users/**").hasAuthority("ROLE_SYSTEM_ADMIN")
                 .requestMatchers("/api/auth/roles", "/api/auth/roles/**").hasAuthority("ROLE_SYSTEM_ADMIN")
+
+                // Analytics endpoints (must be before the pharmacy/** catch-all)
+                .requestMatchers("/api/analytics/**").hasAnyAuthority(
+                    "ROLE_SYSTEM_ADMIN", "ROLE_SUPERVISOR", "ROLE_PURCHASE_MANAGER"
+                )
 
                 // Pharmacy endpoints
                 .requestMatchers("/api/pharmacy/medicines", "/api/pharmacy/medicines/**").hasAnyAuthority(

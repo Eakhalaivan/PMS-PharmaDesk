@@ -102,4 +102,20 @@ public class PurchaseOrderService {
         summary.put("overduePOs", poRepository.findOverduePOs(LocalDate.now()).size());
         return summary;
     }
+
+    public org.springframework.data.domain.Page<PurchaseOrder> getAllPosPaged(
+            org.springframework.data.domain.Pageable pageable) {
+        return poRepository.findAll(pageable);
+    }
+
+    public org.springframework.data.domain.Page<PurchaseOrder> getPOsByStatusPaged(
+            String status, org.springframework.data.domain.Pageable pageable) {
+        return poRepository.findByStatus(status, pageable);
+    }
+
+    public org.springframework.data.domain.Page<PurchaseOrder> searchPOs(
+            String term, org.springframework.data.domain.Pageable pageable) {
+        return poRepository.findByPoNumberContainingIgnoreCaseOrSupplierNameContainingIgnoreCase(
+                term, term, pageable);
+    }
 }

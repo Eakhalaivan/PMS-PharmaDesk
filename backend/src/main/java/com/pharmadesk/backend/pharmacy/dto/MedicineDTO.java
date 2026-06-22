@@ -76,6 +76,17 @@ public class MedicineDTO {
     public void setSubstitutes(String substitutes) { this.substitutes = substitutes; }
     public String getBarcode() { return barcode; }
     public void setBarcode(String barcode) { this.barcode = barcode; }
+
+    // ---- Alias getters for LowStockAlerts frontend compatibility ----
+    /** Alias for getName() — used by the LowStockAlerts component */
+    public String getMedicineName() { return name; }
+
+    /** Alias for getSupplierVendor() — used by the LowStockAlerts component */
+    public String getSupplierName() { return supplierVendor; }
+
+    private String lastUpdated;
+    public String getLastUpdated() { return lastUpdated; }
+    public void setLastUpdated(String lastUpdated) { this.lastUpdated = lastUpdated; }
 }
 
 class StockDTO {

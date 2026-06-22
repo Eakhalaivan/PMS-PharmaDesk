@@ -1,8 +1,15 @@
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
+// Ensure baseURL always ends with '/api' to match the Spring Boot backend
+let base = import.meta.env.VITE_API_URL || '';
+if (base && !base.endsWith('/api')) {
+  base = base.endsWith('/') ? `${base}api` : `${base}/api`;
+}
+if (!base) base = '/api';
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '',
+  baseURL: base,
 });
 
 // Request interceptor – attach token and ensure /api prefix

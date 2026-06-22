@@ -302,18 +302,31 @@ public class MedicineController {
                 })
                 .map(m -> {
                     MedicineDTO dto = medicineMapper.toDto(m);
-                    dto.setCurrentStock(stockMap.getOrDefault(m.getId(), 0));
+                    int qty = stockMap.getOrDefault(m.getId(), 0);
+                    dto.setCurrentStock(qty);
 
-                    // Populate supplier name and lastUpdated from the most recent active batch
-                    List<MedicineStock> batches = stockRepository.findByMedicineId(m.getId());
-                    batches.stream()
-                            .filter(s -> s.getSupplier() != null)
-                            .findFirst()
-                            .ifPresent(s -> dto.setSupplierVendor(s.getSupplier().getName()));
-                    batches.stream()
-                            .filter(b -> b.getCreatedAt() != null)
-                            .max(java.util.Comparator.comparing(MedicineStock::getCreatedAt))
-                            .ifPresent(b -> dto.setLastUpdated(b.getCreatedAt().toLocalDate().toString()));
+                    // Populate frontend-facing alias fields
+                    dto.setMedicineName(m.getName());
+
+                    // Resolve supplier from the first non-deleted stock batch for this medicine
+                    stockRepository.findByMedicineIdAndDeletedFalse(m.getId())
+                        .stream()
+                        .filter(s -> s.getSupplier() != null)
+                        .findFirst()
+                        .ifPresent(s -> {
+                            dto.setSupplierVendor(s.getSupplier().getName());
+                            dto.setSupplierName(s.getSupplier().getName());
+                            dto.setLastUpdated(
+                                s.getDateOfEntry() != null
+                                    ? s.getDateOfEntry().toString()
+                                    : java.time.LocalDate.now().toString()
+                            );
+                        });
+
+                    // Fallback lastUpdated if no batch resolved a supplier
+                    if (dto.getLastUpdated() == null) {
+                        dto.setLastUpdated(java.time.LocalDate.now().toString());
+                    }
 
                     return dto;
                 })

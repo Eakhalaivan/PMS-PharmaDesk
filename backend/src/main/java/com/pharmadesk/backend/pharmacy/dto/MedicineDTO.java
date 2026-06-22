@@ -29,6 +29,19 @@ public class MedicineDTO {
     private String substitutes;
     private String barcode;
 
+    private String medicineName;   // alias used by LowStockAlerts.jsx
+    private String supplierName;   // alias used by LowStockAlerts.jsx
+    private String lastUpdated;    // alias used by LowStockAlerts.jsx
+
+    public String getMedicineName()  { return medicineName; }
+    public void setMedicineName(String medicineName) { this.medicineName = medicineName; }
+
+    public String getSupplierName()  { return supplierName; }
+    public void setSupplierName(String supplierName) { this.supplierName = supplierName; }
+
+    public String getLastUpdated()   { return lastUpdated; }
+    public void setLastUpdated(String lastUpdated) { this.lastUpdated = lastUpdated; }
+
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getName() { return name; }
@@ -76,17 +89,6 @@ public class MedicineDTO {
     public void setSubstitutes(String substitutes) { this.substitutes = substitutes; }
     public String getBarcode() { return barcode; }
     public void setBarcode(String barcode) { this.barcode = barcode; }
-
-    // ---- Alias getters for LowStockAlerts frontend compatibility ----
-    /** Alias for getName() — used by the LowStockAlerts component */
-    public String getMedicineName() { return name; }
-
-    /** Alias for getSupplierVendor() — used by the LowStockAlerts component */
-    public String getSupplierName() { return supplierVendor; }
-
-    private String lastUpdated;
-    public String getLastUpdated() { return lastUpdated; }
-    public void setLastUpdated(String lastUpdated) { this.lastUpdated = lastUpdated; }
 }
 
 class StockDTO {

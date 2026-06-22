@@ -33,7 +33,7 @@ export default function MedicineStock() {
     setLoading(true);
     try {
       const [stockRes, valRes, medRes] = await Promise.all([
-        pharmacyService.getStocks(),
+        pharmacyService.getAllStocks(),
         pharmacyService.api.get('/pharmacy/stocks/valuation'),
         pharmacyService.getMedicines()
       ]);

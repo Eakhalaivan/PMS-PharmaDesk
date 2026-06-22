@@ -32,15 +32,30 @@ export default function MedicineStock() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [stockRes, valRes, medRes] = await Promise.all([
+      // Each call is independent so one failure doesn't block the rest
+      const [stockRes, medRes] = await Promise.all([
         pharmacyService.getAllStocks(),
-        pharmacyService.api.get('/pharmacy/stocks/valuation'),
-        pharmacyService.getMedicines()
+        pharmacyService.getMedicines(),
       ]);
-      if (stockRes.success) setStocks(stockRes.data);
-      if (valRes.data.success) setValuation(valRes.data.data);
-      if (medRes.success) setMedicines(medRes.data);
+
+      // pharmacyService methods return response.data (the ApiResponse object)
+      if (stockRes?.success) setStocks(stockRes.data ?? []);
+      else if (Array.isArray(stockRes?.data)) setStocks(stockRes.data);
+
+      if (medRes?.success) setMedicines(medRes.data ?? []);
+      else if (Array.isArray(medRes?.data)) setMedicines(medRes.data);
+
+      // Valuation is non-critical — load separately and ignore errors
+      try {
+        const valRes = await pharmacyService.api.get('/pharmacy/stocks/valuation');
+        // pharmacyService.api.get returns the full axios response; .data is the ApiResponse
+        const valApiResponse = valRes?.data;
+        if (valApiResponse?.success) setValuation(valApiResponse.data);
+      } catch (_) {
+        // Valuation failure is non-fatal — the stock table still loads
+      }
     } catch (error) {
+      console.error('Stock data load error:', error);
       toast.error('Failed to load stock data');
     } finally {
       setLoading(false);

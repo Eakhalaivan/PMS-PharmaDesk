@@ -1,0 +1,25 @@
+package com.pharmadesk.backend.pharmacy.repository;
+
+import com.pharmadesk.backend.model.StockBatch;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface StockBatchRepository extends JpaRepository<StockBatch, String> {
+
+    @Query("SELECT b FROM StockBatch b WHERE b.quantityAvailable > 0 ORDER BY b.expiryDate ASC")
+    List<StockBatch> findAllOrderByFefo();
+
+    @Query("SELECT b FROM StockBatch b WHERE b.expiryDate <= :maxDate AND b.expiryDate >= :today AND b.quantityAvailable > 0")
+    List<StockBatch> findExpiringWithinDays(@Param("today") java.time.LocalDate today, @Param("maxDate") java.time.LocalDate maxDate);
+
+    @Query("SELECT b FROM StockBatch b WHERE b.expiryDate < :today AND b.quantityAvailable > 0")
+    List<StockBatch> findExpiredBatches(@Param("today") java.time.LocalDate today);
+
+    @Query("SELECT b FROM StockBatch b WHERE b.medicine.id = :medicineId AND b.expired = false AND b.quarantined = false AND b.quantityAvailable > 0 ORDER BY b.expiryDate ASC")
+    List<StockBatch> findBatchesForDispensing(@Param("medicineId") Long medicineId);
+}

@@ -14,6 +14,4 @@ public interface GoodsReceiptNoteRepository extends JpaRepository<GoodsReceiptNo
     List<GoodsReceiptNote> findByPurchaseOrderPoId(String poId);
     List<GoodsReceiptNote> findBySupplierId(Long supplierId);
 
-    @Query("SELECT COUNT(g) FROM GoodsReceiptNote g WHERE g.supplier.id = :supplierId AND g.deleted = false")
-    long countBySupplierId(Long supplierId);
 }

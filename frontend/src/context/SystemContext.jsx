@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../utils/api';
 
 const SystemContext = createContext(null);
 
@@ -16,11 +17,8 @@ export const SystemProvider = ({ children }) => {
   useEffect(() => {
     const fetchSystemData = async () => {
       try {
-        const response = await fetch('/api/system/current-datetime');
-        if (response.ok) {
-          const data = await response.json();
-          setSystemData(data);
-        }
+        const response = await api.get('/system/current-datetime');
+        setSystemData(response.data);
       } catch (error) {
         console.error('Failed to fetch system datetime', error);
       } finally {

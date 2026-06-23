@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../utils/api';
 
 const ConfigContext = createContext(null);
 
@@ -9,11 +10,8 @@ export const ConfigProvider = ({ children }) => {
   useEffect(() => {
     const fetchConfig = async () => {
       try {
-        const response = await fetch('/api/config/public');
-        if (response.ok) {
-          const data = await response.json();
-          setConfig(data);
-        }
+        const response = await api.get('/config/public');
+        setConfig(response.data);
       } catch (error) {
         console.error('Failed to fetch config', error);
       } finally {

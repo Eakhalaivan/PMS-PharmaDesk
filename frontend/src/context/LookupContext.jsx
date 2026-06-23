@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import api from '../utils/api';
 
 const LookupContext = createContext(null);
 
@@ -9,11 +10,8 @@ export const LookupProvider = ({ children }) => {
   useEffect(() => {
     const fetchBulkLookups = async () => {
       try {
-        const response = await fetch('/api/lookups/bulk');
-        if (response.ok) {
-          const data = await response.json();
-          setLookups(data);
-        }
+        const response = await api.get('/lookups/bulk');
+        setLookups(response.data);
       } catch (error) {
         console.error('Failed to fetch lookups', error);
       } finally {

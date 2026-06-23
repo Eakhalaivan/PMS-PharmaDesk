@@ -33,7 +33,7 @@ export default function MedicineMaster() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [visibleColumns, setVisibleColumns] = useState({
-    code: true, hsn: false, mrp: true, stock: true, generic: true, manufacturer: false, barcode: false
+    code: true, hsn: false, mrp: true, stock: true, generic: true, manufacturer: true, barcode: false
   });
 
   const [formData, setFormData] = useState({
@@ -134,33 +134,28 @@ export default function MedicineMaster() {
     return matchesSearch && matchesClass && matchesSchedule;
   });
 
-  const paginatedMedicines = filteredMedicines.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const paginatedMedicines = pageSize === 'All' ? filteredMedicines : filteredMedicines.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   const columns = [
-    ...(visibleColumns.code ? [{ header: 'Code', accessor: 'medicineCode', render: (r) => <span className="font-mono text-xs">{r.medicineCode || '-'}</span> }] : []),
-    { header: 'Medicine Name', render: (r) => (
-      <div>
-        <div className="font-medium text-slate-900">{r.name}</div>
-        {visibleColumns.generic && <div className="text-xs text-slate-500">{r.genericName}</div>}
-      </div>
-    )},
-    { header: 'Class & Schedule', render: (r) => (
-      <div>
-        <div className="text-xs font-medium">{r.drugClass || '-'}</div>
-        <div className={cn("text-[10px] font-bold", ['Schedule H1', 'Schedule X', 'Narcotic'].includes(r.schedule) ? "text-red-600" : "text-slate-500")}>
-          {r.schedule || 'OTC'}
-        </div>
-      </div>
-    )},
-    ...(visibleColumns.manufacturer ? [{ header: 'Manufacturer', accessor: 'manufacturer' }] : []),
-    ...(visibleColumns.hsn ? [{ header: 'HSN', accessor: 'hsnCode', render: (r) => <span className="font-mono text-xs">{r.hsnCode}</span> }] : []),
-    ...(visibleColumns.mrp ? [{ header: 'MRP / Sale', render: (r) => <div className="text-sm font-medium">₹{r.mrp || 0} / ₹{r.salePrice || 0}</div> }] : []),
-    ...(visibleColumns.barcode ? [{ header: 'Barcode', accessor: 'barcode', render: (r) => <span className="font-mono text-xs text-blue-600">{r.barcode || 'N/A'}</span> }] : []),
-    ...(visibleColumns.stock ? [{ header: 'Stock', render: (r) => (
+    { header: 'S.No', render: (r, i) => <span className="text-slate-500 font-medium">{(currentPage - 1) * (pageSize === 'All' ? 0 : pageSize) + i + 1}</span> },
+    { header: 'Code', accessor: 'medicineCode', render: (r) => <span className="font-mono text-xs">{r.medicineCode || '-'}</span> },
+    { header: 'Medicine Name', render: (r) => <span className="font-medium text-slate-900 whitespace-nowrap">{r.name}</span> },
+    { header: 'Generic Name', render: (r) => <span className="text-slate-600 whitespace-nowrap">{r.genericName}</span> },
+    { header: 'Manufacturer', accessor: 'manufacturer', render: (r) => <span className="text-slate-600 whitespace-nowrap">{r.manufacturer || '-'}</span> },
+    { header: 'Category', accessor: 'category', render: (r) => <span className="text-slate-600">{r.category || '-'}</span> },
+    { header: 'Unit', accessor: 'unit', render: (r) => <span className="text-slate-600">{r.unit || '-'}</span> },
+    { header: 'Stock Count', render: (r) => (
       <Badge variant={(r.currentStock || 0) <= (r.reorderLevel || 10) ? 'danger' : 'success'}>
-        {r.currentStock || 0} {r.unit}
+        {r.currentStock || 0}
       </Badge>
-    )}] : []),
+    )},
+    { header: 'MRP', render: (r) => <span className="text-sm font-medium">₹{r.mrp || 0}</span> },
+    { header: 'GST %', render: (r) => <span className="text-sm text-slate-600">{r.taxPercentage || 0}%</span> },
+    { header: 'Schedule', render: (r) => (
+      <div className={cn("text-xs font-bold whitespace-nowrap", ['Schedule H1', 'Schedule X', 'Narcotic'].includes(r.schedule) ? "text-red-600" : "text-slate-500")}>
+        {r.schedule || 'OTC'}
+      </div>
+    )},
     { header: 'Action', render: (row) => (
       <div className="flex gap-2">
         <button onClick={() => openModal(row)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded border border-transparent transition-colors">
@@ -190,18 +185,7 @@ export default function MedicineMaster() {
           {SCHEDULES.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         
-        {/* Column Toggles */}
-        <div className="relative group">
-          <button className="px-4 py-2 border border-slate-200 bg-white rounded-md text-sm font-medium hover:bg-slate-50">Columns</button>
-          <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-md shadow-xl p-3 hidden group-hover:block z-50">
-            {Object.keys(visibleColumns).map(col => (
-              <label key={col} className="flex items-center gap-2 text-sm py-1 cursor-pointer">
-                <input type="checkbox" checked={visibleColumns[col]} onChange={() => setVisibleColumns({...visibleColumns, [col]: !visibleColumns[col]})} />
-                <span className="capitalize">{col}</span>
-              </label>
-            ))}
-          </div>
-        </div>
+
 
         <button onClick={() => openModal()} className="px-5 py-2 bg-[#1a3c6e] text-white rounded-md text-sm font-medium hover:bg-[#122b50] flex items-center gap-2">
           <Plus className="w-4 h-4" /> Add Medicine
@@ -215,7 +199,7 @@ export default function MedicineMaster() {
           <>
             <DataTable columns={columns} data={paginatedMedicines} striped />
             {filteredMedicines.length > 0 && (
-              <Pagination totalRecords={filteredMedicines.length} currentPage={currentPage} pageSize={pageSize} onPageChange={setCurrentPage} />
+              <Pagination totalRecords={filteredMedicines.length} currentPage={currentPage} pageSize={pageSize} onPageChange={setCurrentPage} onPageSizeChange={setPageSize} />
             )}
           </>
         )}

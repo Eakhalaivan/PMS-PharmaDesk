@@ -21,17 +21,21 @@ public class ActivityLogController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<ActivityLog>>> getLogsByUserId(
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<ActivityLog>>> getLogsByUserId(
             @RequestParam Long userId,
-            @RequestParam(required = false) String date) {
+            @RequestParam(required = false) String date,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
         
-        List<ActivityLog> logs;
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        org.springframework.data.domain.Page<ActivityLog> logs;
+        
         if (date != null && date.equals("today")) {
             LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
             LocalDateTime endOfDay = LocalDateTime.now();
-            logs = activityLogRepository.findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(userId, startOfDay, endOfDay);
+            logs = activityLogRepository.findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(userId, startOfDay, endOfDay, pageable);
         } else {
-            logs = activityLogRepository.findByUserIdOrderByCreatedAtDesc(userId);
+            logs = activityLogRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
         }
         
         return ResponseEntity.ok(ApiResponse.success(logs, "Activity logs fetched"));

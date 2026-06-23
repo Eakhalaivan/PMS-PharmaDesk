@@ -8,7 +8,7 @@ spring:
     driver-class-name: ${SPRING_DATASOURCE_DRIVER_CLASS_NAME:com.mysql.cj.jdbc.Driver}
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
@@ -16,8 +16,8 @@ spring:
   flyway:
     enabled: true
     baseline-on-migrate: true
-    validate-on-migrate: false
-    out-of-order: false
+    validate-on-migrate: true
+    out-of-order: true
   mail:
     host: ${SPRING_MAIL_HOST:smtp.gmail.com}
     port: ${SPRING_MAIL_PORT:587}
@@ -34,7 +34,7 @@ server:
   port: ${PORT:8080}
 
 cors:
-  allowed-origin: ${CORS_ALLOWED_ORIGIN:https://pms-pharma-desk.vercel.app}
+  allowed-origin: ${CORS_ALLOWED_ORIGIN:https://pharmacy-frontend.onrender.com}
 
 jwt:
   secret: ${JWT_SECRET}
@@ -49,7 +49,7 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info
   endpoint:
     health:
       show-details: when_authorized

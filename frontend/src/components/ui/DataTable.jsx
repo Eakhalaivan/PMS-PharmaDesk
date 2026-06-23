@@ -19,7 +19,7 @@ export default function DataTable({
         )}>
           <tr>
             {columns.map((col, i) => (
-              <th key={i} className="px-6 py-4 font-bold tracking-wider whitespace-nowrap">
+              <th key={col.accessor || col.header || i} className="px-6 py-4 font-bold tracking-wider whitespace-nowrap">
                 {col.header}
               </th>
             ))}
@@ -55,7 +55,7 @@ export default function DataTable({
           ) : (
             data.map((row, i) => (
               <tr 
-                key={i} 
+                key={row.id || row._id || i} 
                 className={cn(
                   "transition-colors",
                   hover && "hover:bg-blue-50/60 cursor-default",
@@ -63,7 +63,7 @@ export default function DataTable({
                 )}
               >
                 {columns.map((col, j) => (
-                  <td key={j} className="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">
+                  <td key={col.accessor || col.header || j} className="px-6 py-4 font-medium text-gray-700 whitespace-nowrap">
                     {col.accessor ? row[col.accessor] : col.render ? col.render(row, i) : null}
                   </td>
                 ))}

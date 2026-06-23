@@ -62,5 +62,15 @@ public interface MedicineStockRepository extends JpaRepository<MedicineStock, Lo
 
     List<MedicineStock> findByMedicineIdAndDeletedFalse(Long medicineId);
     
+    @Query("SELECT ms.medicine.id, s.name FROM MedicineStock ms JOIN ms.supplier s WHERE ms.deleted = false AND ms.medicine.id IN :medicineIds GROUP BY ms.medicine.id, s.name")
+    List<Object[]> findSupplierNamesByMedicineIds(@Param("medicineIds") List<Long> medicineIds);
+    
     List<MedicineStock> findByExpiryDateBefore(java.time.LocalDate date);
+
+    @Query("SELECT COUNT(DISTINCT s.medicine.id) FROM MedicineStock s WHERE s.deleted = false AND s.quantityAvailable > 0 AND s.expiryDate BETWEEN CURRENT_DATE AND :threshold")
+    long countExpiringWithinDays(@Param("threshold") java.time.LocalDate threshold);
+
+    default long countExpiringWithinDays(int days) {
+        return countExpiringWithinDays(java.time.LocalDate.now().plusDays(days));
+    }
 }

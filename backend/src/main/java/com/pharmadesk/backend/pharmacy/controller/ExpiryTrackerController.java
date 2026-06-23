@@ -32,13 +32,13 @@ public class ExpiryTrackerController {
     }
 
     @PostMapping("/return")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','PHARMACIST','INVENTORY_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_PHARMACY_STAFF','ROLE_STOREKEEPER')")
     public ResponseEntity<ApiResponse<BatchReturnToSupplier>> initiateReturn(@RequestBody BatchReturnToSupplier returnRequest) {
         return ResponseEntity.ok(ApiResponse.success(service.initiateBatchReturn(returnRequest), "Return initiated successfully"));
     }
 
     @PutMapping("/return/{returnId}/status")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','INVENTORY_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER')")
     public ResponseEntity<ApiResponse<BatchReturnToSupplier>> updateStatus(@PathVariable String returnId, @RequestParam String status) {
         return ResponseEntity.ok(ApiResponse.success(service.updateReturnStatus(returnId, status), "Status updated"));
     }

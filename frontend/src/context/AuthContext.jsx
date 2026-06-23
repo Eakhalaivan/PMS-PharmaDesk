@@ -22,6 +22,7 @@ export function AuthProvider({ children }) {
     user: null,
     roles: [],
     activeRole: null,
+    mustChangePassword: false,
     isAuthenticated: false,
     loading: true
   });
@@ -49,6 +50,7 @@ export function AuthProvider({ children }) {
     const userStr = localStorage.getItem('user');
     const rolesStr = localStorage.getItem('roles');
     const activeRoleStr = localStorage.getItem('activeRole');
+    const mustChangePasswordStr = localStorage.getItem('mustChangePassword');
 
     if (token && userStr) {
       try {
@@ -76,6 +78,7 @@ export function AuthProvider({ children }) {
           user: parsedUser,
           roles: finalRoles,
           activeRole: finalActiveRole,
+          mustChangePassword: mustChangePasswordStr === 'true',
           isAuthenticated: true,
           loading: false
         });
@@ -88,7 +91,24 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('activeRole');
       }
     }
+    // Listen for global auth:expired event from api.js
+    const handleAuthExpired = () => {
+      setAuthState({
+        user: null,
+        roles: [],
+        activeRole: null,
+        mustChangePassword: false,
+        isAuthenticated: false,
+        loading: false
+      });
+    };
+    window.addEventListener('auth:expired', handleAuthExpired);
+
     setAuthState(prev => ({ ...prev, loading: false }));
+
+    return () => {
+      window.removeEventListener('auth:expired', handleAuthExpired);
+    };
   }, []);
 
   const login = useCallback(async (username, password) => {
@@ -140,11 +160,13 @@ export function AuthProvider({ children }) {
 
       const primary = getHighestPriorityRole(rolesArray) || rolesArray[0];
       localStorage.setItem('activeRole', primary);
+      localStorage.setItem('mustChangePassword', data.mustChangePassword === true ? 'true' : 'false');
 
       setAuthState({
         user: userData,
         roles: rolesArray,
         activeRole: primary,
+        mustChangePassword: data.mustChangePassword === true,
         isAuthenticated: true,
         loading: false
       });
@@ -159,14 +181,24 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(() => {
+    // Fire-and-forget API call to record logout timestamp on backend
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).catch(() => {}); // silently ignore failures
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('roles');
     localStorage.removeItem('activeRole');
+    localStorage.removeItem('mustChangePassword');
     setAuthState({
       user: null,
       roles: [],
       activeRole: null,
+      mustChangePassword: false,
       isAuthenticated: false,
       loading: false
     });
@@ -182,12 +214,18 @@ export function AuthProvider({ children }) {
     });
   }, []);
 
+  const updateMustChangePassword = useCallback((value) => {
+    localStorage.setItem('mustChangePassword', value ? 'true' : 'false');
+    setAuthState(prev => ({ ...prev, mustChangePassword: value }));
+  }, []);
+
   const contextValue = React.useMemo(() => ({
     ...authState,
     login,
     logout,
-    switchRole
-  }), [authState, login, logout, switchRole]);
+    switchRole,
+    updateMustChangePassword
+  }), [authState, login, logout, switchRole, updateMustChangePassword]);
 
   return (
     <AuthContext.Provider value={contextValue}>

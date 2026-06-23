@@ -18,7 +18,7 @@ import { ROLES } from '../config/roles.config';
 export default function PurchaseOrders() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { activeRole } = useAuth();
+  const { activeRole, user } = useAuth();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -34,7 +34,9 @@ export default function PurchaseOrders() {
   // Form State
   const [supplierId, setSupplierId] = useState('');
   const [suppliers, setSuppliers] = useState([]);
-  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState('');
+  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() + 3); return d.toISOString().split('T')[0];
+  });
   const [notes, setNotes] = useState('');
   const [taxPercent, setTaxPercent] = useState(18);
   const [items, setItems] = useState([
@@ -101,7 +103,8 @@ export default function PurchaseOrders() {
 
   const resetModal = () => {
     setSupplierId('');
-    setExpectedDeliveryDate('');
+    const d = new Date(); d.setDate(d.getDate() + 3);
+    setExpectedDeliveryDate(d.toISOString().split('T')[0]);
     setNotes('');
     setTaxPercent(18);
     setItems([{ id: 1, medicineId: null, medicineName: '', qty: 1, unitPrice: 0 }]);
@@ -113,22 +116,36 @@ export default function PurchaseOrders() {
 
   const handleSavePO = async () => {
     if (!supplierId) return toast.error('Please select a supplier');
+    if (!expectedDeliveryDate) return toast.error('Please set expected delivery date');
     const validItems = items.filter(i => i.medicineId && i.qty > 0 && i.unitPrice > 0);
     if (validItems.length === 0) return toast.error('Add at least one valid item');
 
     setIsSubmitting(true);
+    const selectedSupplier = suppliers.find(s => s.id === parseInt(supplierId) || s.id === supplierId);
+
     const payload = {
       supplier: { id: supplierId },
+      supplierName: selectedSupplier?.name || 'Unknown Supplier',
       expectedDeliveryDate,
+      createdBy: user?.id || 1,
       notes,
-      taxAmount: calculateTaxAmount(),
+      gstAmount: calculateTaxAmount(),
       subtotal: calculateSubtotal(),
-      totalAmount: calculateGrandTotal(),
-      items: validItems.map(i => ({ 
-        medicine: { id: i.medicineId }, 
-        quantity: Number(i.qty), 
-        estimatedUnitPrice: Number(i.unitPrice) 
-      }))
+      totalValue: calculateGrandTotal(),
+      lineItems: validItems.map(i => {
+        const itemSubtotal = Number(i.qty) * Number(i.unitPrice);
+        const itemGst = (itemSubtotal * taxPercent) / 100;
+        return {
+          medicine: { id: i.medicineId }, 
+          medicineName: i.medicineName,
+          orderedQuantity: Number(i.qty), 
+          unitPrice: Number(i.unitPrice),
+          gstPercentage: taxPercent,
+          lineSubtotal: itemSubtotal,
+          lineGst: itemGst,
+          lineTotal: itemSubtotal + itemGst
+        };
+      })
     };
 
     try {
@@ -145,16 +162,27 @@ export default function PurchaseOrders() {
     }
   };
 
+  const handleDeletePO = async (poId) => {
+    if (!window.confirm('Are you sure you want to delete this Purchase Order?')) return;
+    try {
+      await pharmacyService.api.delete(`/pharmacy/purchase-orders/${poId}`);
+      toast.success('Purchase Order deleted successfully');
+      refetch();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete PO');
+    }
+  };
+
   const columns = [
     { header: 'PO No', accessor: 'poNumber' },
     { header: 'Supplier', accessor: 'supplierName' },
     { header: 'Order Date', render: (row) => new Date(row.orderDate || Date.now()).toLocaleDateString('en-IN') },
     { header: 'Expected Delivery', render: (row) => row.expectedDeliveryDate ? new Date(row.expectedDeliveryDate).toLocaleDateString('en-IN') : '-' },
-    { header: 'Total Amount', render: (row) => <span className="font-bold">₹{Number(row.totalAmount || 0).toFixed(2)}</span> },
+    { header: 'Total Amount', render: (row) => <span className="font-bold">₹{Number(row.totalValue || row.totalAmount || 0).toFixed(2)}</span> },
     {
       header: 'Status', render: (row) => {
-        const variants = { PENDING: 'warning', APPROVED: 'primary', RECEIVED: 'success', CANCELLED: 'danger' };
-        return <Badge variant={variants[row.status] || 'default'}>{row.status || 'PENDING'}</Badge>;
+        const variants = { draft: 'default', submitted: 'warning', approved: 'primary', completed: 'success', cancelled: 'danger' };
+        return <Badge variant={variants[row.status?.toLowerCase()] || 'default'}>{row.status || 'DRAFT'}</Badge>;
       }
     },
     {
@@ -162,10 +190,17 @@ export default function PurchaseOrders() {
         <div className="flex items-center gap-2">
           <button 
             title="View Details"
-            onClick={() => navigate(`/purchase-orders/${row.id || row.poNumber}`)} 
+            onClick={() => navigate(`/purchase-orders/${row.poId || row.id}`)} 
             className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
           >
             <Eye className="w-4 h-4" />
+          </button>
+          <button 
+            title="Delete PO"
+            onClick={() => handleDeletePO(row.poId || row.id)} 
+            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
+          >
+            <Trash2 className="w-4 h-4" />
           </button>
         </div>
       )
@@ -283,8 +318,8 @@ export default function PurchaseOrders() {
             </div>
           </div>
 
-          <div className="border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
+          <div className="border border-gray-100 rounded-2xl overflow-visible shadow-sm">
+            <div className="overflow-visible">
               <table className="w-full text-sm">
                 <thead className="bg-slate-800 text-white text-[11px] uppercase tracking-widest">
                   <tr>

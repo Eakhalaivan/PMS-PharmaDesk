@@ -50,10 +50,11 @@ export default function TemperatureLogs() {
     setSubmitting(true);
     try {
       const res = await pharmacyService.createStorageUnit({
-        name: newUnit.name,
+        unitName: newUnit.name,
+        unitType: 'refrigerator',
         location: newUnit.location,
-        minTemperature: parseFloat(newUnit.minTemperature),
-        maxTemperature: parseFloat(newUnit.maxTemperature)
+        minThreshold: parseFloat(newUnit.minTemperature),
+        maxThreshold: parseFloat(newUnit.maxTemperature)
       });
       if (res.success || res.id) {
         toast.success('Storage unit added successfully');
@@ -76,10 +77,15 @@ export default function TemperatureLogs() {
     }
     setSubmitting(true);
     try {
+      const selectedUnit = units.find(u => u.unitId === selectedUnitId);
       const res = await pharmacyService.recordTemperature({
-        storageUnitId: parseInt(selectedUnitId),
-        temperature: parseFloat(tempReading),
-        loggedBy: loggedBy
+        storageUnit: { unitId: selectedUnitId },
+        unitName: selectedUnit.unitName,
+        unitType: selectedUnit.unitType,
+        recordedTemperature: parseFloat(tempReading),
+        minThreshold: selectedUnit.minThreshold,
+        maxThreshold: selectedUnit.maxThreshold,
+        recordedBy: 1
       });
       if (res.success || res.id) {
         const isBreached = res.data?.isBreach || res.isBreach;
@@ -147,12 +153,12 @@ export default function TemperatureLogs() {
             <h3 className="text-sm font-bold text-slate-700">Cold Chain Storage Units</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {units.map(unit => (
-                <div key={unit.id} className="p-4 border border-slate-200 rounded-xl flex items-center justify-between">
+                <div key={unit.unitId} className="p-4 border border-slate-200 rounded-xl flex items-center justify-between">
                   <div className="space-y-1">
-                    <div className="font-bold text-slate-800 text-xs">{unit.name}</div>
+                    <div className="font-bold text-slate-800 text-xs">{unit.unitName}</div>
                     <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">{unit.location}</div>
                     <div className="text-[10px] text-slate-500 font-bold bg-slate-50 border border-slate-100 px-2 py-0.5 rounded-full inline-block">
-                      Safe: {unit.minTemperature}°C to {unit.maxTemperature}°C
+                      Safe: {unit.minThreshold}°C to {unit.maxThreshold}°C
                     </div>
                   </div>
                   <Thermometer className="w-8 h-8 text-blue-500 bg-blue-50 p-1.5 rounded-lg" />
@@ -177,7 +183,7 @@ export default function TemperatureLogs() {
                   required
                 >
                   <option value="">Select storage unit</option>
-                  {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  {units.map(u => <option key={u.unitId} value={u.unitId}>{u.unitName}</option>)}
                 </select>
               </div>
               <div>
@@ -233,7 +239,7 @@ export default function TemperatureLogs() {
                     <span className="font-mono text-slate-400">{b.loggedAt}</span>
                   </div>
                   <div>
-                    Reading was <span className="font-bold text-red-600">{b.temperature}°C</span> (Safe: {b.minSafeTemp} - {b.maxSafeTemp}°C)
+                    Reading was <span className="font-bold text-red-600">{b.recordedTemperature}°C</span> (Safe: {b.minThreshold} - {b.maxThreshold}°C)
                   </div>
                   {b.correctiveAction ? (
                     <div className="p-2 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded text-[10px] space-y-0.5">

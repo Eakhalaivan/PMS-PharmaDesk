@@ -20,6 +20,12 @@ public class StockAdjustment extends BaseEntity {
     @JoinColumn(name = "medicine_stock_id", nullable = false)
     private MedicineStock medicineStock;
 
+    @Column(name = "batch_id", nullable = false)
+    private Long batchId;
+
+    @Column(name = "adjustment_type", nullable = false)
+    private String adjustmentType = "MANUAL";
+
     @Column(name = "adjusted_quantity", nullable = false)
     private Integer adjustedQuantity; // positive or negative
 
@@ -41,6 +47,12 @@ public class StockAdjustment extends BaseEntity {
 
     public MedicineStock getMedicineStock() { return medicineStock; }
     public void setMedicineStock(MedicineStock medicineStock) { this.medicineStock = medicineStock; }
+
+    public Long getBatchId() { return batchId; }
+    public void setBatchId(Long batchId) { this.batchId = batchId; }
+
+    public String getAdjustmentType() { return adjustmentType; }
+    public void setAdjustmentType(String adjustmentType) { this.adjustmentType = adjustmentType; }
 
     public Integer getAdjustedQuantity() { return adjustedQuantity; }
     public void setAdjustedQuantity(Integer adjustedQuantity) { this.adjustedQuantity = adjustedQuantity; }

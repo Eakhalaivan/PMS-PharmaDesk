@@ -92,6 +92,13 @@ public class PurchaseOrderController {
         return ResponseEntity.ok(ApiResponse.success(service.cancelPO(id, reason, userId), "PO cancelled"));
     }
 
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','PURCHASE_MANAGER')")
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable String id) {
+        service.deletePO(id);
+        return ResponseEntity.ok(ApiResponse.success(null, "PO deleted successfully"));
+    }
+
     @GetMapping("/summary")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getSummary() {
         return ResponseEntity.ok(ApiResponse.success(service.getPoSummary(), "PO summary stats"));

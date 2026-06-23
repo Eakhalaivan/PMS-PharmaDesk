@@ -23,6 +23,7 @@ public class User extends BaseEntity {
     private String username;
 
     @Column(name = "password_hash", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String passwordHash;
 
     @ManyToMany(fetch = FetchType.LAZY)
@@ -55,6 +56,12 @@ public class User extends BaseEntity {
     @Column(name = "last_login")
     private LocalDateTime lastLogin;
 
+    @Column(name = "last_logout")
+    private LocalDateTime lastLogout;
+
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword = false;
+
     @Column(name = "role")
     private String legacyRole;
 
@@ -82,6 +89,10 @@ public class User extends BaseEntity {
     public void setProfilePhotoUrl(String profilePhotoUrl) { this.profilePhotoUrl = profilePhotoUrl; }
     public LocalDateTime getLastLogin() { return lastLogin; }
     public void setLastLogin(LocalDateTime lastLogin) { this.lastLogin = lastLogin; }
+    public LocalDateTime getLastLogout() { return lastLogout; }
+    public void setLastLogout(LocalDateTime lastLogout) { this.lastLogout = lastLogout; }
+    public boolean isMustChangePassword() { return mustChangePassword; }
+    public void setMustChangePassword(boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
     public String getLegacyRole() { return legacyRole; }
     public void setLegacyRole(String legacyRole) { this.legacyRole = legacyRole; }
 }

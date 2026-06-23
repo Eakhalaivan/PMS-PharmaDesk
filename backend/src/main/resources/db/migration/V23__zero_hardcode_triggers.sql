@@ -1,0 +1,3 @@
+-- V23: Zero Hardcode Database Triggers
+-- TiDB does not support triggers. 
+-- The business logic from this file must be moved to the Spring Boot application layer (JPA Entity Listeners or Service Layer).

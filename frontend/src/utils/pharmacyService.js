@@ -1,19 +1,7 @@
 import api from './api';
 
 const pharmacyService = {
-  // Dashboard
-  getDashboardStats: async () => {
-    const response = await api.get('/pharmacy/dashboard');
-    return response.data;
-  },
-  getRecentActivities: async () => {
-    const response = await api.get('/pharmacy/dashboard/recent-activities');
-    return response.data;
-  },
-  getChartData: async () => {
-    const response = await api.get('/pharmacy/dashboard/chart-data');
-    return response.data;
-  },
+  // Dashboard API calls moved to React Query within components
 
   // Sales
   getSales: async () => {
@@ -370,57 +358,57 @@ const pharmacyService = {
 
   // POs
   getPOs: async () => {
-    const response = await api.get('/purchase-orders');
+    const response = await api.get('/pharmacy/purchase-orders');
     return response.data;
   },
   createPO: async (data) => {
-    const response = await api.post('/purchase-orders', data);
+    const response = await api.post('/pharmacy/purchase-orders', data);
     return response.data;
   },
   submitPO: async (id) => {
-    const response = await api.put(`/purchase-orders/${id}/submit`);
+    const response = await api.put(`/pharmacy/purchase-orders/${id}/submit`);
     return response.data;
   },
   approvePO: async (id, userId) => {
-    const response = await api.put(`/purchase-orders/${id}/approve?userId=${userId}`);
+    const response = await api.put(`/pharmacy/purchase-orders/${id}/approve?userId=${userId}`);
     return response.data;
   },
   sendPO: async (id) => {
-    const response = await api.put(`/purchase-orders/${id}/send`);
+    const response = await api.put(`/pharmacy/purchase-orders/${id}/send`);
     return response.data;
   },
   cancelPO: async (id, reason, userId) => {
-    const response = await api.put(`/purchase-orders/${id}/cancel?reason=${reason}&userId=${userId}`);
+    const response = await api.put(`/pharmacy/purchase-orders/${id}/cancel?reason=${reason}&userId=${userId}`);
     return response.data;
   },
   getPOSummary: async () => {
-    const response = await api.get('/purchase-orders/summary');
+    const response = await api.get('/pharmacy/purchase-orders/summary');
     return response.data;
   },
 
   // Cold Chain
   getStorageUnits: async () => {
-    const response = await api.get('/temperature-logs/units');
+    const response = await api.get('/pharmacy/temperature-logs/units');
     return response.data;
   },
   createStorageUnit: async (data) => {
-    const response = await api.post('/temperature-logs/units', data);
+    const response = await api.post('/pharmacy/temperature-logs/units', data);
     return response.data;
   },
   recordTemperature: async (data) => {
-    const response = await api.post('/temperature-logs', data);
+    const response = await api.post('/pharmacy/temperature-logs', data);
     return response.data;
   },
   recordCorrectiveAction: async (id, action, userId) => {
-    const response = await api.put(`/temperature-logs/${id}/corrective-action?action=${action}&userId=${userId}`);
+    const response = await api.post(`/pharmacy/temperature-logs/${id}/resolve?action=${action}&userId=${userId}`);
     return response.data;
   },
   getTemperatureBreaches: async () => {
-    const response = await api.get('/temperature-logs/breaches');
+    const response = await api.get('/pharmacy/temperature-logs/breaches');
     return response.data;
   },
   getTemperatureChart: async (unitId) => {
-    const response = await api.get(`/temperature-logs/chart/${unitId}`);
+    const response = await api.get(`/pharmacy/temperature-logs/chart/${unitId}`);
     return response.data;
   },
 
@@ -436,7 +424,7 @@ const pharmacyService = {
 
   // Barcode
   scanBarcode: async (barcodeValue, scanModule, userId) => {
-    const response = await api.post(`/barcode/scan?userId=${userId}`, { barcodeValue, scanModule });
+    const response = await api.post(`/pharmacy/barcode/scan?userId=${userId}`, { barcodeValue, scanModule });
     return response.data;
   },
 

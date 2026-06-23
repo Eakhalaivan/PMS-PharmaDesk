@@ -74,8 +74,8 @@ export default function DrugInteractions() {
   };
 
   const filteredMedicines = searchTerm.trim() === '' ? [] : medicines.filter(m => 
-    m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    m.code.toLowerCase().includes(searchTerm.toLowerCase())
+    m.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    m.code?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getSeverityColor = (sev) => {

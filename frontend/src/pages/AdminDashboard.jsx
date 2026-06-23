@@ -1,209 +1,471 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { 
-  Box, IndianRupee, FileText, AlertTriangle, Clock, Users,
-  ShoppingCart, Barcode, Plus, FilePlus, Printer, ArrowUp, ArrowDown,
-  Info, AlertCircle, ShieldAlert, ArrowRight, Activity
-} from 'lucide-react';
+import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+         XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import {
+  Package, IndianRupee, FileText, AlertTriangle, Calendar, Users,
+  Plus, ScanLine, PackagePlus, ShoppingCart, ClipboardList, Printer,
+  Clock, TrendingUp, TrendingDown, Activity, Thermometer, ShieldAlert,
+  Truck, RotateCcw, CheckSquare, Receipt
+} from 'lucide-react';
 
-const fetchDashboard = () => api.get('/pharmacy/dashboard').then(r => r.data.data);
+const ROLE_CONFIG = {
+  SYSTEM_ADMIN: {
+    greeting: 'System Admin',
+    subtitle: 'Operational dashboard and real-time pharmacy metrics overview.',
+    kpiKeys: ['totalSkus', 'todayRevenue', 'lowStockAlerts', 'expiringIn30Days', 'activePatientsToday'],
+    chartType: 'bar',
+    chartLabel: '7-Day Sales Revenue',
+    quickActions: [
+      { label: 'New Sale', icon: Plus, path: '/sales' },
+      { label: 'Scan Barcode', icon: ScanLine, path: '/barcode-scanner' },
+      { label: 'Add Stock', icon: PackagePlus, path: '/stocks' },
+      { label: 'Create PO', icon: ShoppingCart, path: '/purchase-orders' },
+      { label: 'Print Day Report', icon: Printer, action: 'printDayReport' },
+    ],
+  },
+  PHARMACY_STAFF: {
+    greeting: 'Pharmacy Staff',
+    subtitle: 'Your dispensing queue and daily sales overview.',
+    kpiKeys: ['billsRaisedToday', 'todayCollections', 'pendingDispensals',
+               'lowStockItems', 'myReturnsToday', 'creditBillsPending'],
+    chartType: 'line',
+    chartLabel: "Today's Hourly Sales",
+    quickActions: [
+      { label: 'New Sale', icon: Plus, path: '/sales' },
+      { label: 'Scan Barcode', icon: ScanLine, path: '/barcode-scanner' },
+      { label: 'Process Return', icon: RotateCcw, path: '/returns' },
+      { label: 'Print Receipt', icon: Printer, action: 'printReceipt' },
+    ],
+  },
+  BILLING_STAFF: {
+    greeting: 'Billing Staff',
+    subtitle: 'Billing queue, collections, and clearance overview.',
+    kpiKeys: ['billsRaisedToday', 'totalCollected', 'pendingClearances',
+               'advanceRequests', 'creditBills', 'consolidatedBillsPending'],
+    chartType: 'bar',
+    chartLabel: 'Payment Mode Breakdown',
+    quickActions: [
+      { label: 'New Bill', icon: Plus, path: '/sales' },
+      { label: 'View Advances', icon: IndianRupee, path: '/advances' },
+      { label: 'Process Clearance', icon: CheckSquare, path: '/clearance' },
+      { label: 'Print Bill', icon: Printer, action: 'printBill' },
+      { label: 'View Consolidated', icon: FileText, path: '/consolidated-bills' },
+      { label: 'Day Close', icon: Calendar, action: 'dayClose' },
+    ],
+  },
+  STOREKEEPER: {
+    greeting: 'Storekeeper',
+    subtitle: 'Purchase orders, GRN, and stock movement overview.',
+    kpiKeys: ['posPendingApproval', 'grnsAwaitingVerification', 'lowStockSkus',
+               'expiringIn30Days', 'supplierReturnsPending', 'stockValue'],
+    chartType: 'dualBar',
+    chartLabel: 'Stock Inflow vs Outflow (7 Days)',
+    quickActions: [
+      { label: 'Create PO', icon: ShoppingCart, path: '/purchase-orders' },
+      { label: 'Record GRN', icon: Truck, path: '/grn' },
+      { label: 'Adjust Stock', icon: PackagePlus, path: '/stocks' },
+      { label: 'Supplier Return', icon: RotateCcw, path: '/returns' },
+      { label: 'View Low Stock', icon: AlertTriangle, path: '/low-stock-alerts' },
+      { label: 'View Expiry', icon: Calendar, path: '/expiry-tracker' },
+    ],
+  },
+  SUPERVISOR: {
+    greeting: 'Supervisor',
+    subtitle: 'Team activity, approvals, and operational metrics.',
+    kpiKeys: ['totalSalesToday', 'staffActive', 'pendingApprovals',
+               'returnsAwaitingApproval', 'lowStockAlerts', 'systemHealthPct'],
+    chartType: 'bar',
+    chartLabel: 'Department Sales Breakdown',
+    quickActions: [
+      { label: 'Approve Returns', icon: CheckSquare, path: '/returns' },
+      { label: 'View Staff Activity', icon: Users, path: '/users' },
+      { label: 'Run Report', icon: FileText, path: '/reports' },
+      { label: 'View Alerts', icon: AlertTriangle, action: 'scrollToAlerts' },
+      { label: 'Manage Users', icon: Users, path: '/users' },
+      { label: 'Analytics', icon: TrendingUp, path: '/analytics' },
+    ],
+  },
+  RECEPTIONIST: {
+    greeting: 'Receptionist',
+    subtitle: 'Patient registration and appointments overview.',
+    kpiKeys: ['activePatientsToday'],
+    chartType: 'line',
+    chartLabel: 'Patient Flow',
+    quickActions: [
+      { label: 'Patients', icon: Users, path: '/patients' }
+    ]
+  },
+  MEDICAL_STAFF: {
+    greeting: 'Medical Staff',
+    subtitle: 'Prescriptions and dispensals overview.',
+    kpiKeys: [],
+    chartType: 'bar',
+    chartLabel: 'Prescriptions Volume',
+    quickActions: [
+    ]
+  },
+  SENIOR_MEDICAL_STAFF: {
+    greeting: 'Senior Medical Staff',
+    subtitle: 'Prescriptions and dispensals overview.',
+    kpiKeys: [],
+    chartType: 'bar',
+    chartLabel: 'Prescriptions Volume',
+    quickActions: [
+    ]
+  }
+};
 
-export default function AdminDashboard() {
-  const navigate = useNavigate();
-  const { data: stats, isLoading } = useQuery({ queryKey: ['dashboard-stats'], queryFn: fetchDashboard, staleTime: 30000 });
+const KPI_META = {
+  totalSkus:                 { label: 'Total SKUs in Stock',       icon: Package,       color: 'blue' },
+  todayRevenue:              { label: "Today's Sales Revenue",     icon: IndianRupee,   color: 'green',  prefix: '₹' },
+  pendingPrescriptions:      { label: 'Pending Prescriptions',     icon: FileText,      color: 'amber' },
+  lowStockAlerts:            { label: 'Low Stock Alerts',          icon: AlertTriangle, color: 'orange' },
+  expiringIn30Days:          { label: 'Expiring in 30 Days',       icon: Calendar,      color: 'red' },
+  activePatientsToday:       { label: 'Active Patients Today',     icon: Users,         color: 'purple' },
+  billsRaisedToday:          { label: 'Bills Raised Today',        icon: Receipt,       color: 'blue' },
+  todayCollections:          { label: "Today's Collections",       icon: IndianRupee,   color: 'green',  prefix: '₹' },
+  pendingDispensals:         { label: 'Pending Dispensals',        icon: ClipboardList, color: 'amber' },
+  lowStockItems:             { label: 'Low Stock Items',           icon: AlertTriangle, color: 'orange' },
+  myReturnsToday:            { label: 'My Returns Today',          icon: RotateCcw,     color: 'slate' },
+  creditBillsPending:        { label: 'Credit Bills Pending',      icon: FileText,      color: 'red' },
+  totalCollected:            { label: 'Total Collected',           icon: IndianRupee,   color: 'green',  prefix: '₹' },
+  pendingClearances:         { label: 'Pending Clearances',        icon: CheckSquare,   color: 'amber' },
+  advanceRequests:           { label: 'Advance Requests',          icon: IndianRupee,   color: 'blue' },
+  creditBills:               { label: 'Credit Bills',              icon: Receipt,       color: 'red' },
+  consolidatedBillsPending:  { label: 'Consolidated Bills Pending',icon: FileText,      color: 'slate' },
+  posPendingApproval:        { label: 'POs Pending Approval',      icon: ShoppingCart,  color: 'amber' },
+  grnsAwaitingVerification:  { label: 'GRNs Awaiting Verification',icon: Truck,         color: 'blue' },
+  lowStockSkus:              { label: 'Low Stock SKUs',            icon: AlertTriangle, color: 'orange' },
+  supplierReturnsPending:    { label: 'Supplier Returns Pending',  icon: RotateCcw,     color: 'slate' },
+  stockValue:                { label: 'Stock Value',               icon: IndianRupee,   color: 'green',  prefix: '₹' },
+  totalSalesToday:           { label: 'Total Sales Today',         icon: IndianRupee,   color: 'green',  prefix: '₹' },
+  staffActive:               { label: 'Staff Active',              icon: Users,         color: 'blue' },
+  pendingApprovals:          { label: 'Pending Approvals',         icon: CheckSquare,   color: 'amber' },
+  returnsAwaitingApproval:   { label: 'Returns Awaiting Approval', icon: RotateCcw,     color: 'red' },
+  systemHealthPct:           { label: 'System Health',             icon: Activity,      color: 'green',  suffix: '%' },
+};
 
-  // ------------------------------------
-  // Mock Data
-  // ------------------------------------
-  const mockRevenueData = [
-    { name: 'Mon', revenue: 145000 },
-    { name: 'Tue', revenue: 132000 },
-    { name: 'Wed', revenue: 168000 },
-    { name: 'Thu', revenue: 125000 },
-    { name: 'Fri', revenue: 189000 },
-    { name: 'Sat', revenue: 210000 },
-    { name: 'Sun', revenue: 254000 }, // Today
-  ];
+function KpiCard({ kpiKey, value, delta, deltaType }) {
+  const meta = KPI_META[kpiKey] || { label: kpiKey, icon: Activity, color: 'slate' };
+  const Icon = meta.icon;
+  const isLoading = value === undefined || value === null;
+  
+  const colorMap = {
+    blue: 'text-blue-500 bg-blue-50',
+    green: 'text-emerald-600 bg-emerald-50',
+    amber: 'text-amber-500 bg-amber-50',
+    orange: 'text-orange-500 bg-orange-50',
+    red: 'text-red-500 bg-red-50',
+    purple: 'text-purple-500 bg-purple-50',
+    slate: 'text-slate-500 bg-slate-100',
+  };
 
-  const mockAlerts = [
-    { id: 1, severity: 'critical', title: 'Stock-out Risk', desc: 'Paracetamol 500mg has 0 inventory across all branches.', time: '10 mins ago', icon: ShieldAlert },
-    { id: 2, severity: 'critical', title: 'Cold Chain Breach', desc: 'Fridge A temperature exceeded 8°C for 30 minutes.', time: '1 hr ago', icon: AlertTriangle },
-    { id: 3, severity: 'warning', title: 'Near Expiry', desc: 'Batch BX-990 (Amoxicillin) expiring in 15 days.', time: '2 hrs ago', icon: Clock },
-    { id: 4, severity: 'info', title: 'Pending GRN', desc: 'PO #1045 from Sun Pharma requires verification.', time: '3 hrs ago', icon: FilePlus },
-    { id: 5, severity: 'info', title: 'Credit Bills Unverified', desc: '14 credit bills from yesterday pending sign-off.', time: '5 hrs ago', icon: FileText },
-  ];
+  const displayValue = isLoading ? '—' : 
+    meta.prefix ? `${meta.prefix}${Number(value).toLocaleString('en-IN')}` :
+    meta.suffix ? `${Number(value).toLocaleString('en-IN')}${meta.suffix}` :
+    Number(value).toLocaleString('en-IN');
 
-  // ------------------------------------
-  // Helper Components
-  // ------------------------------------
-  const KPICard = ({ label, value, trendStr, trendVal, icon: Icon, type }) => {
-    // Colors: #1a3c6e brand blue, red for danger, amber for warning, green for success
-    const isCritical = type === 'critical';
-    const isSuccess = type === 'success';
-    const isWarning = type === 'warning';
-
-    const colorClass = isCritical ? 'text-red-600' : isSuccess ? 'text-green-600' : isWarning ? 'text-amber-500' : 'text-[#1a3c6e]';
-    const bgClass = isCritical ? 'bg-red-50' : isSuccess ? 'bg-green-50' : isWarning ? 'bg-amber-50' : 'bg-[#1a3c6e]/10';
-    const borderClass = isCritical ? 'border-red-200' : isSuccess ? 'border-green-200' : isWarning ? 'border-amber-200' : 'border-slate-200';
-
-    return (
-      <div className="bg-white border border-slate-200 rounded-lg p-4 flex flex-col justify-between">
-        <div className="flex justify-between items-start mb-2">
-          <span className="text-sm font-medium text-slate-500">{label}</span>
-          <div className={`p-2 rounded-md ${bgClass}`}>
-            <Icon className={`w-4 h-4 ${colorClass}`} />
-          </div>
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm flex flex-col gap-3 min-w-0">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide leading-tight">
+          {meta.label}
+        </span>
+        <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${colorMap[meta.color]}`}>
+          <Icon className="w-4 h-4" />
+        </span>
+      </div>
+      <div className="text-3xl font-bold text-gray-900 tabular-nums">
+        {isLoading ? <div className="h-9 w-20 bg-gray-100 rounded animate-pulse" /> : displayValue}
+      </div>
+      {delta !== undefined && (
+        <div className={`flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full w-fit
+          ${deltaType === 'up' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+          {deltaType === 'up' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+          {delta} vs yesterday
         </div>
-        <div>
-          <h3 className="text-2xl font-medium text-slate-900">{value}</h3>
-          <div className="flex items-center gap-1 mt-1">
-            {trendVal > 0 ? <ArrowUp className="w-3 h-3 text-green-600" /> : trendVal < 0 ? <ArrowDown className="w-3 h-3 text-red-600" /> : null}
-            <span className={`text-xs font-medium ${trendVal > 0 ? 'text-green-600' : trendVal < 0 ? 'text-red-600' : 'text-slate-400'}`}>
-              {trendStr}
+      )}
+    </div>
+  );
+}
+
+const SEVERITY_STYLES = {
+  INFO:     { badge: 'bg-blue-100 text-blue-700',   dot: 'bg-blue-500',   icon: Activity },
+  WARNING:  { badge: 'bg-amber-100 text-amber-700', dot: 'bg-amber-500',  icon: AlertTriangle },
+  CRITICAL: { badge: 'bg-red-100 text-red-700',     dot: 'bg-red-500',    icon: ShieldAlert },
+};
+
+const getRelativeTime = (isoStr) => {
+  const diff = Date.now() - new Date(isoStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins} mins ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} hour${hrs > 1 ? 's' : ''} ago`;
+  return `${Math.floor(hrs / 24)} days ago`;
+};
+
+function AlertRow({ alert }) {
+  const style = SEVERITY_STYLES[alert.severity] || SEVERITY_STYLES.INFO;
+  const Icon = style.icon;
+  const relTime = getRelativeTime(alert.createdAt);
+  
+  return (
+    <div className="flex gap-3 py-3 border-b border-gray-50 last:border-0">
+      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0
+        ${alert.severity === 'CRITICAL' ? 'bg-red-50' : 
+          alert.severity === 'WARNING' ? 'bg-amber-50' : 'bg-blue-50'}`}>
+        <Icon className={`w-4 h-4 
+          ${alert.severity === 'CRITICAL' ? 'text-red-500' :
+            alert.severity === 'WARNING' ? 'text-amber-500' : 'text-blue-500'}`} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2 mb-0.5">
+          <span className="text-sm font-semibold text-gray-800 truncate">{alert.title}</span>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-xs text-gray-400">{relTime}</span>
+            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${style.badge}`}>
+              {alert.severity}
             </span>
           </div>
         </div>
+        <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">{alert.description}</p>
+      </div>
+    </div>
+  );
+}
+
+function DashboardChart({ chartType, data, label }) {
+  const CHART_COLOR = '#3B82F6';
+  const CHART_COLOR_2 = '#10B981';
+  
+  const CustomTooltip = ({ active, payload, label: lbl }) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-4 py-3 text-sm">
+        <p className="font-semibold text-gray-700 mb-1">{lbl}</p>
+        {payload.map((p, i) => (
+          <p key={i} style={{ color: p.color }} className="font-medium">
+            {p.name}: {p.name?.includes('Revenue') || p.name?.includes('₹') 
+              ? `₹${Number(p.value).toLocaleString('en-IN')}` 
+              : p.value}
+          </p>
+        ))}
       </div>
     );
   };
 
-  const severityStyles = {
-    critical: { iconClass: 'text-red-600', bgClass: 'bg-red-50', borderClass: 'border-red-200' },
-    warning: { iconClass: 'text-amber-500', bgClass: 'bg-amber-50', borderClass: 'border-amber-200' },
-    info: { iconClass: 'text-[#1a3c6e]', bgClass: 'bg-blue-50', borderClass: 'border-blue-200' },
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      {chartType === 'bar' ? (
+        <BarChart data={data} barSize={32}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+          <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false}
+                 tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
+          <Tooltip content={<CustomTooltip />} />
+          <Bar dataKey="value" name="Sales Revenue" fill={CHART_COLOR} radius={[6,6,0,0]}
+               activeBar={{ fill: '#1D4ED8' }} />
+        </BarChart>
+      ) : chartType === 'line' ? (
+        <LineChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+          <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false}
+                 tickFormatter={v => `₹${(v/1000).toFixed(1)}k`} />
+          <Tooltip content={<CustomTooltip />} />
+          <Line dataKey="value" name="Sales (₹)" stroke={CHART_COLOR} strokeWidth={2.5}
+                dot={{ r: 3, fill: CHART_COLOR }} activeDot={{ r: 5 }} />
+        </LineChart>
+      ) : chartType === 'dualBar' ? (
+        <BarChart data={data} barSize={20} barGap={4}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+          <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+          <Tooltip content={<CustomTooltip />} />
+          <Bar dataKey="value"     name="Inflow"  fill={CHART_COLOR}   radius={[4,4,0,0]} />
+          <Bar dataKey="secondary" name="Outflow" fill={CHART_COLOR_2} radius={[4,4,0,0]} />
+        </BarChart>
+      ) : null}
+    </ResponsiveContainer>
+  );
+}
+
+const getGreeting = () => {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good Morning';
+  if (h < 17) return 'Good Afternoon';
+  return 'Good Evening';
+};
+
+const getFormattedDate = () =>
+  new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+
+export default function AdminDashboard() {
+  const { user, activeRole } = useAuth();
+  const navigate = useNavigate();
+
+  const config = ROLE_CONFIG[activeRole] || ROLE_CONFIG.SYSTEM_ADMIN;
+
+  const { data: kpiData, isLoading: kpiLoading } = useQuery({
+    queryKey: ['dashboard-kpis', activeRole],
+    queryFn: () => api.get('/pharmacy/dashboard').then(r => r.data?.data ?? r.data),
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+    placeholderData: (prev) => prev,
+    enabled: !!activeRole
+  });
+
+  const { data: chartData } = useQuery({
+    queryKey: ['dashboard-chart', activeRole],
+    queryFn: () => api.get(`/pharmacy/dashboard/chart-data?role=${activeRole}&days=7`)
+                      .then(r => r.data?.data ?? []),
+    staleTime: 60_000,
+    enabled: !!activeRole
+  });
+
+  const { data: alerts } = useQuery({
+    queryKey: ['dashboard-alerts', activeRole],
+    queryFn: () => api.get('/pharmacy/dashboard/alerts').then(r => r.data?.data ?? []),
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    enabled: !!activeRole
+  });
+
+  const { data: revenueStrip } = useQuery({
+    queryKey: ['dashboard-revenue', activeRole],
+    queryFn: () => api.get('/pharmacy/dashboard/revenue-strip').then(r => r.data?.data ?? {}),
+    staleTime: 60_000,
+    enabled: !!activeRole
+  });
+
+  const handleAction = (actionName) => {
+    console.log(`Action triggered: ${actionName}`);
+    // Handle special actions like printDayReport etc.
   };
 
-  if (isLoading) return <div className="p-10 text-center animate-pulse text-slate-500 font-medium">Loading Dashboard...</div>;
-
   return (
-    <div className="min-h-full bg-slate-50 p-6 space-y-6">
-      
-      {/* 1. KPI CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        <KPICard label="Total SKUs in stock" value="12,450" trendStr="Stable vs yesterday" trendVal={0} icon={Box} type="info" />
-        <KPICard label="Today's Sales" value="₹2,54,000" trendStr="12% vs yesterday" trendVal={1} icon={IndianRupee} type="success" />
-        <KPICard label="Pending Prescriptions" value="24" trendStr="5 fewer than usual" trendVal={-1} icon={FileText} type="info" />
-        <KPICard label="Low Stock Alerts" value="18" trendStr="Action required" trendVal={1} icon={AlertTriangle} type="critical" />
-        <KPICard label="Expiring (30 Days)" value="45" trendStr="Needs review" trendVal={1} icon={Clock} type="warning" />
-        <KPICard label="Active Patients" value="312" trendStr="8% vs yesterday" trendVal={1} icon={Users} type="success" />
+    <div className="space-y-6 p-6 bg-gray-50 min-h-screen">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {getGreeting()},{' '}
+            <span className="text-blue-600">{config.greeting}</span>
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">{config.subtitle}</p>
+        </div>
+        <div className="flex items-center gap-3 text-sm text-gray-500">
+          <div className="flex items-center gap-1.5 bg-white border border-gray-200 
+                          rounded-lg px-3 py-2 shadow-sm">
+            <Clock className="w-4 h-4 text-gray-400" />
+            <span className="font-medium text-gray-700">{getFormattedDate()}</span>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-lg px-3 py-2 
+                          shadow-sm font-semibold text-gray-700">
+            {user?.branch || 'Main Branch'}
+          </div>
+        </div>
       </div>
 
-      {/* 2. QUICK ACTIONS */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {[
-          { label: 'New Sale', icon: ShoppingCart, path: '/sales' },
-          { label: 'Scan Barcode', icon: Barcode, path: '/stocks' },
-          { label: 'Add Stock', icon: Plus, path: '/stocks' },
-          { label: 'Create PO', icon: FilePlus, path: '/purchase-orders' },
-          { label: 'Pending Rx', icon: FileText, path: '/pending-prescriptions' },
-          { label: 'Print Day Report', icon: Printer, path: '/reports' },
-        ].map((action, idx) => (
-          <button 
-            key={idx}
-            onClick={() => navigate(action.path)}
-            className="flex items-center justify-center gap-2 bg-white border border-slate-200 py-3 rounded-lg hover:border-[#1a3c6e] hover:bg-slate-50 transition-colors text-sm font-medium text-slate-700"
-          >
-            <action.icon className="w-4 h-4 text-[#1a3c6e]" />
-            {action.label}
-          </button>
+      {/* KPI Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+        {config.kpiKeys.map(key => (
+          <KpiCard
+            key={key}
+            kpiKey={key}
+            value={kpiData?.[key]}
+            delta={kpiData?.deltas?.[key]}
+            deltaType={kpiData?.deltaTypes?.[key]}
+          />
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* 3. ALERTS SUMMARY PANEL */}
-        <div className="lg:col-span-5 bg-white border border-slate-200 rounded-lg flex flex-col h-full">
-          <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center">
-            <h2 className="text-base font-medium text-[#1a3c6e] flex items-center gap-2">
-              <Activity className="w-4 h-4" /> Smart Alerts
-            </h2>
-          </div>
-          <div className="flex-1 p-0 flex flex-col">
-            <div className="divide-y divide-slate-100 flex-1">
-              {mockAlerts.map(alert => {
-                const styles = severityStyles[alert.severity];
-                return (
-                  <div key={alert.id} className="p-4 flex gap-4 hover:bg-slate-50 transition-colors">
-                    <div className={`shrink-0 w-10 h-10 rounded-md flex items-center justify-center ${styles.bgClass} ${styles.borderClass} border`}>
-                      <alert.icon className={`w-5 h-5 ${styles.iconClass}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-start mb-1">
-                        <h4 className="text-sm font-medium text-slate-900 truncate">{alert.title}</h4>
-                        <span className="text-xs font-normal text-slate-400 whitespace-nowrap ml-2">{alert.time}</span>
-                      </div>
-                      <p className="text-sm font-normal text-slate-500 line-clamp-1">{alert.desc}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <button className="w-full py-3 border-t border-slate-200 text-sm font-medium text-[#1a3c6e] hover:bg-slate-50 transition-colors flex items-center justify-center gap-1">
-              View All Alerts <ArrowRight className="w-4 h-4" />
+      {/* Quick Actions */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">
+          Quick Actions
+        </h3>
+        <div className="flex flex-wrap gap-3">
+          {config.quickActions.map(action => {
+            const Icon = action.icon;
+            return (
+              <button
+                key={action.label}
+                onClick={() => action.path ? navigate(action.path) : handleAction(action.action)}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200
+                           bg-gray-50 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700
+                           text-sm font-semibold text-gray-700 transition-all duration-150 shadow-sm"
+              >
+                <Icon className="w-4 h-4" />
+                {action.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Chart + Alerts */}
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+        {/* Chart (3/5 width) */}
+        <div className="xl:col-span-3 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-bold text-gray-800">{config.chartLabel}</h3>
+            <button className="text-xs text-blue-500 font-semibold hover:underline">
+              Operational breakdown
             </button>
           </div>
+          {chartData?.length ? (
+            <DashboardChart chartType={config.chartType} data={chartData} label={config.chartLabel} />
+          ) : (
+            <div className="h-[220px] flex items-center justify-center">
+              <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent 
+                              rounded-full animate-spin" />
+            </div>
+          )}
         </div>
 
-        {/* 4. REVENUE WIDGET */}
-        <div className="lg:col-span-7 bg-white border border-slate-200 rounded-lg flex flex-col">
-          <div className="px-5 py-4 border-b border-slate-200 flex justify-between items-center">
-            <h2 className="text-base font-medium text-[#1a3c6e]">7-Day Revenue Trend</h2>
+        {/* Alerts panel (2/5 width) */}
+        <div className="xl:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-bold text-gray-800">Active System Alerts</h3>
+            <span className="text-xs text-gray-400 font-medium">
+              {alerts?.length ?? 0} sources monitored
+            </span>
           </div>
-          <div className="p-6 flex-1 flex flex-col">
-            <div className="flex gap-6 mb-6">
-              <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 flex-1">
-                <span className="text-xs font-medium text-slate-500 block mb-1">Today's Total</span>
-                <span className="text-xl font-medium text-slate-900">₹2,54,000</span>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 flex-1">
-                <span className="text-xs font-medium text-slate-500 block mb-1">This Week</span>
-                <span className="text-xl font-medium text-slate-900">₹12,23,000</span>
-              </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 flex-1">
-                <span className="text-xs font-medium text-slate-500 block mb-1">This Month</span>
-                <span className="text-xl font-medium text-slate-900">₹45,80,000</span>
-              </div>
-            </div>
-
-            <div className="flex-1 min-h-[250px] mb-6">
-              <div style={{ width: '100%', height: 250 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={mockRevenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
-                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} tickFormatter={(val) => `₹${val/1000}k`} />
-                    <Tooltip 
-                      cursor={{ fill: '#f8fafc' }} 
-                      contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: 'none' }}
-                      formatter={(value) => [`₹${value.toLocaleString('en-IN')}`, 'Revenue']}
-                    />
-                    <Bar dataKey="revenue" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                      {mockRevenueData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={index === mockRevenueData.length - 1 ? '#1a3c6e' : '#cbd5e1'} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            <div className="border-t border-slate-200 pt-5">
-              <span className="text-xs font-medium text-slate-500 block mb-3">Revenue Breakdown (Today)</span>
-              <div className="flex h-4 rounded-full overflow-hidden mb-2 border border-slate-200">
-                <div className="bg-[#1a3c6e] h-full" style={{ width: '65%' }} title="OTC Sales: 65%"></div>
-                <div className="bg-amber-500 h-full" style={{ width: '25%' }} title="Credit Sales: 25%"></div>
-                <div className="bg-teal-500 h-full" style={{ width: '10%' }} title="Insurance Claims: 10%"></div>
-              </div>
-              <div className="flex justify-between text-xs font-medium text-slate-500">
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-[#1a3c6e]"></div>OTC Sales (65%)</div>
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-amber-500"></div>Credit Sales (25%)</div>
-                <div className="flex items-center gap-1.5"><div className="w-2 h-2 rounded-full bg-teal-500"></div>Insurance (10%)</div>
-              </div>
-            </div>
+          <div className="space-y-0 overflow-y-auto max-h-[260px] pr-1">
+            {alerts?.length ? (
+              alerts.slice(0, 6).map(alert => <AlertRow key={alert.id} alert={alert} />)
+            ) : (
+              <p className="text-sm text-gray-400 text-center py-8">No active alerts</p>
+            )}
           </div>
         </div>
+      </div>
+
+      {/* Revenue Strip */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          { label: "TODAY'S REVENUE",      key: 'todayRevenue' },
+          { label: "THIS WEEK'S REVENUE",  key: 'weekRevenue' },
+          { label: "THIS MONTH'S REVENUE", key: 'monthRevenue' },
+        ].map(({ label, key }) => (
+          <div key={key} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+              {label}
+            </p>
+            <p className="text-2xl font-bold text-gray-900 tabular-nums">
+              {revenueStrip?.[key] != null
+                ? `₹${Number(revenueStrip[key]).toLocaleString('en-IN')}`
+                : <span className="inline-block h-8 w-28 bg-gray-100 rounded animate-pulse" />}
+            </p>
+          </div>
+        ))}
       </div>
     </div>
   );

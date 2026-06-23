@@ -9,6 +9,6 @@ import java.util.List;
 
 @Repository
 public interface ActivityLogRepository extends JpaRepository<ActivityLog, Long> {
-    List<ActivityLog> findByUserIdOrderByCreatedAtDesc(Long userId);
-    List<ActivityLog> findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(Long userId, LocalDateTime start, LocalDateTime end);
+    org.springframework.data.domain.Page<ActivityLog> findByUserIdOrderByCreatedAtDesc(Long userId, org.springframework.data.domain.Pageable pageable);
+    org.springframework.data.domain.Page<ActivityLog> findByUserIdAndCreatedAtBetweenOrderByCreatedAtDesc(Long userId, LocalDateTime start, LocalDateTime end, org.springframework.data.domain.Pageable pageable);
 }

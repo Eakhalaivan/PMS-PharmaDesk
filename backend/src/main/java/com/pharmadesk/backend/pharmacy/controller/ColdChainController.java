@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/temperature-logs")
+@RequestMapping("/api/pharmacy/temperature-logs")
 public class ColdChainController {
 
     private final ColdChainService service;

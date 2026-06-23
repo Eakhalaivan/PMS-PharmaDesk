@@ -1,0 +1,3 @@
+-- V24: Zero Hardcode Events for System Alerts
+-- TiDB does not support event schedulers.
+-- The business logic from this file must be moved to Spring Boot @Scheduled cron jobs.

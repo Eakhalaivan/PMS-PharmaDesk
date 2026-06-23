@@ -362,8 +362,8 @@ export default function PharmacySales() {
           </div>
 
           {/* Medicine Entry */}
-          <div className="border border-gray-100 rounded-2xl overflow-hidden shadow-sm">
-            <div className="overflow-x-auto">
+          <div className="border border-gray-100 rounded-2xl overflow-visible shadow-sm">
+            <div className="overflow-visible">
               <table className="w-full text-sm">
                 <thead className="bg-slate-800 text-white text-[11px] uppercase tracking-widest">
                   <tr>

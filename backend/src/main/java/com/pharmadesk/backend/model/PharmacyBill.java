@@ -11,8 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "pharmacy_bills")
-@SQLDelete(sql = "UPDATE pharmacy_bills SET is_deleted = true WHERE id=?")
+@Table(name = "sales_bills")
+@SQLDelete(sql = "UPDATE sales_bills SET is_deleted = true WHERE id=?")
 @SQLRestriction("is_deleted=false")
 public class PharmacyBill extends BaseEntity {
 
@@ -26,7 +26,7 @@ public class PharmacyBill extends BaseEntity {
     private String patientName;
     private String doctorName;
 
-    @Column(name = "billing_date", nullable = false)
+    @Column(name = "bill_date", nullable = false)
     private LocalDateTime billingDate;
 
     @Column(name = "bill_type", nullable = false)
@@ -53,8 +53,17 @@ public class PharmacyBill extends BaseEntity {
     @Column(name = "payment_mode")
     private String paymentMode;
 
-    @Column(nullable = false)
+    @Column(name = "bill_status", nullable = false)
     private String status = "PAID"; // PENDING, PAID, CANCELLED
+
+    @Column(name = "amount_due")
+    private BigDecimal amountDue = BigDecimal.ZERO;
+
+    @Column(name = "advance_adjusted")
+    private BigDecimal advanceAdjusted = BigDecimal.ZERO;
+
+    @Column(name = "total_gst_amount")
+    private BigDecimal totalGstAmount = BigDecimal.ZERO;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_status")

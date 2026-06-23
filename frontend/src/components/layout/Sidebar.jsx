@@ -2,79 +2,94 @@ import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
-import { ROLES, getRoleColor, ROLE_LABELS, DASHBOARD_ROUTES } from '../../config/roles.config';
+import { ROLES, ROLE_LABELS, DASHBOARD_ROUTES } from '../../config/roles.config';
 import { AnimatePresence, motion } from 'framer-motion';
 import { 
-  Building2, 
-  ShoppingCart, 
-  RotateCcw, 
-  LayoutDashboard, 
-  CreditCard,
-  Settings,
-  ArrowLeftRight,
-  ClipboardList,
-  Store,
-  Undo2,
-  Syringe,
-  Banknote,
-  Receipt,
-  FileCheck,
-  Stethoscope,
-  RefreshCw,
-  Box,
-  BarChart3,
-  ListTodo,
-  Pill,
-  LogOut,
-  ChevronDown,
-  Truck,
-  Users,
-  FileText,
-  AlertTriangle,
-  Bell,
-  CalendarX,
-  ShieldAlert,
-  Thermometer,
-  ShieldCheck,
-  ScanBarcode,
-  Shield,
-  PlusCircle
+  Building2, ShoppingCart, RotateCcw, LayoutDashboard, CreditCard,
+  Settings, ArrowLeftRight, ClipboardList, Store, Undo2, Syringe,
+  Banknote, Receipt, FileCheck, Stethoscope, RefreshCw, Box,
+  BarChart3, ListTodo, Pill, LogOut, ChevronDown, Truck, Users,
+  FileText, AlertTriangle, CalendarX, ShieldAlert, Thermometer,
+  ShieldCheck, ScanBarcode, Shield, PlusCircle, Calendar,
+  TrendingUp, ClipboardCheck, FilePlus, ShoppingBag, BarChart2, UserCog, Zap, Package
 } from 'lucide-react';
 
-const allNavItems = [
-  { name: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { name: 'Medicine Master', path: '/medicines', icon: Pill, roles: [ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF] },
-  { name: 'Stock Management', path: '/stocks', icon: Box, roles: [ROLES.SYSTEM_ADMIN, ROLES.STOREKEEPER] },
-  { name: 'Expiry Tracker', path: '/expiry-tracker', icon: CalendarX, roles: [ROLES.SYSTEM_ADMIN, ROLES.SUPERVISOR, ROLES.PHARMACY_STAFF, ROLES.STOREKEEPER] },
-  { name: 'Drug Interactions', path: '/drug-interactions', icon: ShieldAlert, roles: [ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF, ROLES.SENIOR_MEDICAL_STAFF, ROLES.MEDICAL_STAFF] },
-  { name: 'Cold Chain Logs', path: '/temperature-logs', icon: Thermometer, roles: [ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF, ROLES.STOREKEEPER] },
-  { name: 'Narcotic NDPS', path: '/narcotics', icon: ShieldCheck, roles: [ROLES.SYSTEM_ADMIN, ROLES.SUPERVISOR, ROLES.PHARMACY_STAFF] },
-  { name: 'Barcode Scanner', path: '/barcode-scanner', icon: ScanBarcode, roles: [ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF, ROLES.STOREKEEPER] },
-  { name: 'Insurance Claims', path: '/insurance-claims', icon: Shield, roles: [ROLES.SYSTEM_ADMIN, ROLES.BILLING_STAFF] },
-  { name: 'GRN Entry', path: '/grn', icon: PlusCircle, roles: [ROLES.SYSTEM_ADMIN, ROLES.STOREKEEPER] },
-  { name: 'Pharmacy Sales', path: '/sales', icon: ShoppingCart, roles: [ROLES.SYSTEM_ADMIN, ROLES.BILLING_STAFF] },
-  { name: 'Medicine Returns', path: '/returns', icon: RotateCcw, roles: [ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF] },
-  { name: 'Medicine Credit Bills', path: '/credit-bills', icon: CreditCard, roles: [ROLES.SYSTEM_ADMIN, ROLES.BILLING_STAFF] },
-  { name: 'Direct Pharmacy Sales', path: '/direct-sales', icon: Store, roles: [ROLES.SYSTEM_ADMIN, ROLES.BILLING_STAFF] },
-  { name: 'Direct Medicine Returns', path: '/direct-returns', icon: Undo2, roles: [ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF] },
-  { name: 'Return Worklists', path: '/return-worklists', icon: ClipboardList, roles: [ROLES.SYSTEM_ADMIN, ROLES.SUPERVISOR] },
-  { name: 'Dispense Worklists', path: '/dispense-worklists', icon: Syringe, roles: [ROLES.SYSTEM_ADMIN, ROLES.MEDICAL_STAFF, ROLES.SENIOR_MEDICAL_STAFF] },
-  { name: 'Pending Prescriptions', path: '/pending-prescriptions', icon: Stethoscope, roles: [ROLES.SYSTEM_ADMIN, ROLES.MEDICAL_STAFF, ROLES.SENIOR_MEDICAL_STAFF] },
-  { name: 'Pending Indent Pres.', path: '/pending-indents', icon: ListTodo, roles: [ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF] },
-  { name: 'Pending Pharmacy Rep.', path: '/pending-replacement', icon: RefreshCw, roles: [ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF] },
-  { name: 'Pending Rep. Returns', path: '/pending-replacement-returns', icon: Box, roles: [ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF] },
-  { name: 'Consolidated Bills', path: '/consolidated-bills', icon: Receipt, roles: [ROLES.SYSTEM_ADMIN, ROLES.BILLING_STAFF] },
-  { name: 'Pharmacy Advances', path: '/advances', icon: Banknote, roles: [ROLES.SYSTEM_ADMIN, ROLES.BILLING_STAFF] },
-  { name: 'Pharmacy Clearance', path: '/clearance', icon: FileCheck, roles: [ROLES.SYSTEM_ADMIN, ROLES.BILLING_STAFF] },
-  { name: 'Medicine Credit Returns', path: '/credit-returns', icon: ArrowLeftRight, roles: [ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF] },
-  { name: 'Analytics Engine', path: '/analytics', icon: BarChart3, roles: [ROLES.SYSTEM_ADMIN, ROLES.SUPERVISOR, ROLES.AUDIT_COMPLIANCE] },
-  { name: 'Suppliers', path: '/suppliers', icon: Truck, roles: [ROLES.SYSTEM_ADMIN, ROLES.STOREKEEPER] },
-  { name: 'Patients', path: '/patients', icon: Users, roles: [ROLES.SYSTEM_ADMIN, ROLES.BILLING_STAFF, ROLES.RECEPTIONIST] },
-  { name: 'Reports', path: '/reports', icon: FileText, roles: [ROLES.SYSTEM_ADMIN, ROLES.SUPERVISOR] },
-  { name: 'Purchase Orders', path: '/purchase-orders', icon: FileText, roles: [ROLES.SYSTEM_ADMIN, ROLES.STOREKEEPER] },
-  { name: 'Low Stock Alerts', path: '/low-stock-alerts', icon: AlertTriangle, roles: ['ALL'] },
-  { name: 'User Management', path: '/users', icon: Settings, roles: [ROLES.SYSTEM_ADMIN] },
-];
+const NAV_BY_ROLE = {
+  SYSTEM_ADMIN: [
+    { name: 'System Admin Dashboard', path: '/dashboard/admin',      icon: LayoutDashboard },
+    { name: 'Medicine Master',         path: '/medicines',            icon: Pill },
+    { name: 'Stock Management',        path: '/stocks',               icon: Package },
+    { name: 'Pharmacy Sales',          path: '/sales',                icon: ShoppingCart },
+    { name: 'Medicine Returns',        path: '/returns',              icon: RotateCcw },
+    { name: 'Return Worklists',        path: '/return-worklists',     icon: ClipboardList },
+    { name: 'Pending Indent Pres.',    path: '/pending-indents',      icon: FilePlus },
+    { name: 'Pending Pharmacy Rep.',   path: '/pending-replacement',  icon: RefreshCw },
+    { name: 'Consolidated Bills',      path: '/consolidated-bills',   icon: Receipt },
+    { name: 'Purchase Orders',         path: '/purchase-orders',      icon: ShoppingBag },
+    { name: 'GRN Entry',               path: '/grn',                  icon: Truck },
+    { name: 'Suppliers',               path: '/suppliers',            icon: Building2 },
+    { name: 'Patients',                path: '/patients',             icon: Users },
+    { name: 'Low Stock Alerts',        path: '/low-stock-alerts',     icon: AlertTriangle },
+    { name: 'Expiry Tracker',          path: '/expiry-tracker',       icon: Calendar },
+    { name: 'Drug Interactions',       path: '/drug-interactions',    icon: Zap },
+    { name: 'Temperature Logs',        path: '/temperature-logs',     icon: Thermometer },
+    { name: 'Narcotics Register',      path: '/narcotics',            icon: Shield },
+    { name: 'Barcode Scanner',         path: '/barcode-scanner',      icon: ScanBarcode },
+    { name: 'Insurance Claims',        path: '/insurance-claims',     icon: FileCheck },
+    { name: 'Analytics',               path: '/analytics',            icon: TrendingUp },
+    { name: 'Reports',                 path: '/reports',              icon: BarChart2 },
+    { name: 'User Management',         path: '/users',                icon: UserCog },
+    { name: 'Role Management',         path: '/roles',                icon: ShieldCheck },
+  ],
+  PHARMACY_STAFF: [
+    { name: 'Pharmacy Dashboard',      path: '/dashboard/pharmacy',   icon: LayoutDashboard },
+    { name: 'Pharmacy Sales',          path: '/sales',                icon: ShoppingCart },
+    { name: 'Medicine Returns',        path: '/returns',              icon: RotateCcw },
+    { name: 'Medicine Master',         path: '/medicines',            icon: Pill },
+    { name: 'Barcode Scanner',         path: '/barcode-scanner',      icon: ScanBarcode },
+    { name: 'Low Stock Alerts',        path: '/low-stock-alerts',     icon: AlertTriangle },
+    { name: 'Expiry Tracker',          path: '/expiry-tracker',       icon: Calendar },
+    { name: 'Drug Interactions',       path: '/drug-interactions',    icon: Zap },
+    { name: 'Temperature Logs',        path: '/temperature-logs',     icon: Thermometer },
+    { name: 'Narcotics Register',      path: '/narcotics',            icon: Shield },
+  ],
+  BILLING_STAFF: [
+    { name: 'Billing Dashboard',       path: '/dashboard/billing',    icon: LayoutDashboard },
+    { name: 'Pharmacy Sales',          path: '/sales',                icon: ShoppingCart },
+    { name: 'Medicine Returns',        path: '/returns',              icon: RotateCcw },
+    { name: 'Consolidated Bills',      path: '/consolidated-bills',   icon: Receipt },
+    { name: 'Patients',                path: '/patients',             icon: Users },
+    { name: 'Insurance Claims',        path: '/insurance-claims',     icon: FileCheck },
+  ],
+  STOREKEEPER: [
+    { name: 'Store Dashboard',         path: '/dashboard/store',      icon: LayoutDashboard },
+    { name: 'Stock Management',        path: '/stocks',               icon: Package },
+    { name: 'Purchase Orders',         path: '/purchase-orders',      icon: ShoppingBag },
+    { name: 'GRN Entry',               path: '/grn',                  icon: Truck },
+    { name: 'Suppliers',               path: '/suppliers',            icon: Building2 },
+    { name: 'Low Stock Alerts',        path: '/low-stock-alerts',     icon: AlertTriangle },
+    { name: 'Expiry Tracker',          path: '/expiry-tracker',       icon: Calendar },
+    { name: 'Temperature Logs',        path: '/temperature-logs',     icon: Thermometer },
+  ],
+  SUPERVISOR: [
+    { name: 'Supervisor Dashboard',    path: '/dashboard/supervisor', icon: LayoutDashboard },
+    { name: 'Return Worklists',        path: '/return-worklists',     icon: ClipboardList },
+    { name: 'Analytics',               path: '/analytics',            icon: TrendingUp },
+    { name: 'Reports',                 path: '/reports',              icon: BarChart2 },
+  ],
+  RECEPTIONIST: [
+    { name: 'Reception Dashboard',     path: '/dashboard/receptionist', icon: LayoutDashboard },
+    { name: 'Patients',                path: '/patients',             icon: Users },
+  ],
+  MEDICAL_STAFF: [
+    { name: 'Medical Dashboard',       path: '/dashboard/medical',    icon: LayoutDashboard },
+    { name: 'Drug Interactions',       path: '/drug-interactions',    icon: Zap },
+  ],
+  SENIOR_MEDICAL_STAFF: [
+    { name: 'Senior Medical Dashboard',path: '/dashboard/senior-medical', icon: LayoutDashboard },
+    { name: 'Drug Interactions',       path: '/drug-interactions',    icon: Zap },
+  ]
+};
 
 export default function Sidebar() {
   const { user, roles, activeRole, switchRole, logout } = useAuth();
@@ -98,26 +113,22 @@ export default function Sidebar() {
     navigate('/login');
   };
 
-  // Use activeRole for current context, fallback to first role
-  const currentRole = activeRole || roles?.[0] || '';
-
-  const navItems = allNavItems.filter(item => {
-    if (!item.roles) return true; // accessible by everyone (e.g. dashboard)
-    return (
-      item.roles.includes(currentRole) ||     // matches active role
-      item.roles.includes('ALL') ||           // visible to everyone
-      roles.some(r => item.roles.includes(r)) // matches any assigned role
-    );
-  });
-
-  const getDashboardPath = () => {
-    return DASHBOARD_ROUTES[activeRole] || '/dashboard/pharmacy';
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const parts = name.split(' ');
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.substring(0, 2).toUpperCase();
   };
 
+  const currentRole = activeRole || roles?.[0] || 'SYSTEM_ADMIN';
+  const navItems = NAV_BY_ROLE[currentRole] || NAV_BY_ROLE.PHARMACY_STAFF;
+
+  const getDashboardPath = () => DASHBOARD_ROUTES[currentRole] || '/dashboard/pharmacy';
+
   return (
-    <aside className="fixed top-0 left-0 h-screen w-72 bg-sidebarBg text-white flex flex-col shadow-2xl z-20">
+    <aside className="fixed top-0 left-0 h-screen w-72 bg-[#1B2A4A] text-white flex flex-col shadow-2xl z-20">
       <div className="h-20 flex items-center px-6 border-b border-white/5 gap-3 shrink-0">
-        <div className="bg-primary p-2 rounded-lg shadow-lg shadow-primary/20">
+        <div className="bg-blue-600 p-2 rounded-lg shadow-lg">
           <Building2 className="w-6 h-6 text-white" />
         </div>
         <div>
@@ -159,7 +170,7 @@ export default function Sidebar() {
                     }}
                     className={cn(
                       "w-full px-3 py-2 text-left text-sm transition-colors",
-                      activeRole === role ? "bg-primary text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"
+                      activeRole === role ? "bg-blue-600 text-white" : "text-slate-300 hover:bg-white/5 hover:text-white"
                     )}
                   >
                     {ROLE_LABELS[role] || role}
@@ -172,11 +183,10 @@ export default function Sidebar() {
       )}
 
       <nav className="flex-1 overflow-y-auto py-4 px-4 space-y-1 custom-scrollbar">
-        <p className="px-3 text-[10px] font-bold text-blue-300 uppercase tracking-widest mb-4 opacity-50">Main Modules</p>
+        <p className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-2">Main Modules</p>
         {navItems.map((item) => {
           const path = item.path === '/' ? getDashboardPath() : item.path;
           
-          // Match active route even if it has subpaths (e.g. /purchase-orders/123)
           const isActive = location.pathname === path || 
                            (item.path !== '/' && location.pathname.startsWith(`${item.path}/`)) ||
                            (item.path === '/' && location.pathname.startsWith('/dashboard'));
@@ -186,10 +196,10 @@ export default function Sidebar() {
               key={item.path}
               to={path}
               className={cn(
-                "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 group",
+                "flex items-center gap-3 px-4 py-3 text-sm transition-all duration-300 group",
                 isActive 
-                  ? "bg-primary text-white shadow-xl shadow-primary/30 translate-x-1" 
-                  : "text-blue-100/60 hover:text-white hover:bg-white/5"
+                  ? "bg-blue-600 text-white font-semibold rounded-xl shadow-lg" 
+                  : "text-slate-300 hover:bg-slate-700/60 hover:text-white rounded-xl"
               )}
             >
               <item.icon className={cn(
@@ -197,25 +207,27 @@ export default function Sidebar() {
                 "group-hover:scale-110"
               )} />
               <span className="truncate">
-                {item.path === '/' ? `${ROLE_LABELS[activeRole] || 'System'} Dashboard` : item.name}
+                {item.name}
               </span>
             </NavLink>
           );
         })}
       </nav>
 
-      <div className="p-4 border-t border-white/5 bg-black/10">
-        <div className="flex items-center gap-3 bg-white/5 rounded-2xl p-4 border border-white/5 hover:bg-white/10 transition-colors group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-blue-700 flex items-center justify-center text-sm font-bold shadow-lg shadow-primary/20 group-hover:scale-105 transition-transform">
-            {user?.name?.substring(0, 2).toUpperCase() || 'U'}
+      <div className="p-4 border-t border-white/5 bg-[#1B2A4A]">
+        <div className="flex items-center gap-3 px-4 py-3 bg-slate-700/50 rounded-xl group">
+          <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0 group-hover:scale-105 transition-transform">
+            {getInitials(user?.name)}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold truncate text-white">{user?.name || 'Unknown User'}</p>
-            <p className="text-[10px] text-blue-300/80 truncate uppercase tracking-wider">{ROLE_LABELS[activeRole] || activeRole || 'Staff'}</p>
+            <p className="text-sm font-semibold text-white truncate">{user?.name || 'Unknown User'}</p>
+            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wide truncate">
+              {ROLE_LABELS[activeRole] || activeRole || 'Staff'}
+            </p>
           </div>
           <button 
             onClick={handleLogout}
-            className="p-2 hover:bg-red-500/20 text-red-400 hover:text-red-300 rounded-lg transition-colors"
+            className="text-slate-400 hover:text-red-400 transition-colors"
             title="Log out"
           >
             <LogOut className="w-4 h-4" />

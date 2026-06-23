@@ -50,12 +50,24 @@ public class PurchaseOrderService {
         po.setPoId(UUID.randomUUID().toString());
         po.setPoNumber("PO-" + LocalDate.now().toString().replace("-","") + "-" + (System.currentTimeMillis() % 10000));
         po.setStatus("draft");
+        BigDecimal subtotal = BigDecimal.ZERO;
+        BigDecimal gstAmount = BigDecimal.ZERO;
+
         if (po.getLineItems() != null) {
-            po.getLineItems().forEach(item -> {
+            for (PoLineItem item : po.getLineItems()) {
                 item.setLineId(UUID.randomUUID().toString());
                 item.setPurchaseOrder(po);
-            });
+                
+                // Recalculate totals from line items to be absolutely certain
+                if (item.getLineSubtotal() != null) subtotal = subtotal.add(item.getLineSubtotal());
+                if (item.getLineGst() != null) gstAmount = gstAmount.add(item.getLineGst());
+            }
         }
+        
+        po.setSubtotal(subtotal);
+        po.setGstAmount(gstAmount);
+        po.setTotalValue(subtotal.add(gstAmount));
+
         return poRepository.save(po);
     }
 
@@ -92,6 +104,11 @@ public class PurchaseOrderService {
         po.setCancelledBy(user);
         po.setUpdatedAt(LocalDateTime.now());
         return poRepository.save(po);
+    }
+
+    public void deletePO(String poId) {
+        PurchaseOrder po = getPoById(poId);
+        poRepository.delete(po);
     }
 
     public Map<String, Object> getPoSummary() {

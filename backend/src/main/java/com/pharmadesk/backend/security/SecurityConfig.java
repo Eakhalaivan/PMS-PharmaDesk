@@ -60,9 +60,14 @@ public class SecurityConfig {
                 })
             )
             .authorizeHttpRequests(auth -> auth
+                // Allow CORS preflight
+                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                
                 // Public endpoints
                 .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/logout", "/api/auth/otp/**").permitAll()
-                .requestMatchers("/actuator/**").permitAll()
+                .requestMatchers("/api/system/**", "/api/config/**", "/api/lookups/**").permitAll()
+                .requestMatchers("/actuator/health").permitAll()
+                .requestMatchers("/actuator/**").hasAuthority("ROLE_SYSTEM_ADMIN")
 
                 // Admin-only endpoints
                 .requestMatchers("/api/auth/users", "/api/auth/users/**").hasAuthority("ROLE_SYSTEM_ADMIN")
@@ -70,7 +75,7 @@ public class SecurityConfig {
 
                 // Analytics endpoints (must be before the pharmacy/** catch-all)
                 .requestMatchers("/api/analytics/**").hasAnyAuthority(
-                    "ROLE_SYSTEM_ADMIN", "ROLE_SUPERVISOR", "ROLE_PURCHASE_MANAGER"
+                    "ROLE_SYSTEM_ADMIN", "ROLE_SUPERVISOR", "ROLE_STOREKEEPER"
                 )
 
                 // Pharmacy endpoints
@@ -115,6 +120,8 @@ public class SecurityConfig {
         java.util.Set<String> origins = new java.util.LinkedHashSet<>();
         origins.add("http://localhost:5173");
         origins.add("http://127.0.0.1:5173");
+        origins.add("http://localhost:5174");
+        origins.add("http://127.0.0.1:5174");
         if (allowedOrigin != null && !allowedOrigin.isBlank()) {
             origins.add(allowedOrigin);
         }

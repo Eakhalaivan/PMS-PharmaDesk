@@ -2,7 +2,7 @@
 
 -- 1. Expiry & Batch Tracker
 CREATE TABLE IF NOT EXISTS stock_batches (
-    batch_id VARCHAR(36) PRIMARY KEY,
+    batch_id CHAR(36) PRIMARY KEY,
     medicine_id BIGINT NOT NULL,
     medicine_name VARCHAR(150) NOT NULL,
     generic_name VARCHAR(150),
@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS stock_batches (
     is_quarantined TINYINT(1) DEFAULT 0,
     quarantine_reason TEXT,
     is_expired TINYINT(1) DEFAULT 0,
-    fefo_priority INT GENERATED ALWAYS AS (DATEDIFF(expiry_date, CURDATE())) STORED,
+    fefo_priority INT DEFAULT 0,
     created_by VARCHAR(36),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS stock_batches (
 
 CREATE TABLE IF NOT EXISTS batch_return_to_supplier (
     return_id VARCHAR(36) PRIMARY KEY,
-    batch_id VARCHAR(36) NOT NULL,
+    batch_id CHAR(36) NOT NULL,
     medicine_id BIGINT NOT NULL,
     supplier_id BIGINT NOT NULL,
     returned_quantity INT NOT NULL,
@@ -184,7 +184,7 @@ CREATE TABLE IF NOT EXISTS grn_line_items (
     price_variance DECIMAL(10,2),
     has_discrepancy TINYINT(1) DEFAULT 0,
     discrepancy_type VARCHAR(100),
-    batch_id VARCHAR(36),
+    batch_id CHAR(36),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (grn_id) REFERENCES grn_entries(grn_id) ON DELETE CASCADE,
     FOREIGN KEY (medicine_id) REFERENCES medicines(id),
@@ -315,7 +315,7 @@ CREATE TABLE IF NOT EXISTS barcode_scan_logs (
     barcode_value VARCHAR(200) NOT NULL,
     scan_type ENUM('medicine_lookup','batch_lookup','patient_lookup','unknown') NOT NULL,
     resolved_medicine_id BIGINT,
-    resolved_batch_id BIGINT,
+    resolved_batch_id CHAR(36),
     scanned_by BIGINT NOT NULL,
     scan_module VARCHAR(60),
     scan_result ENUM('success','not_found','expired','quarantined') NOT NULL,

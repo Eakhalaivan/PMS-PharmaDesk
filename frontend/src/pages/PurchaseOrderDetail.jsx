@@ -120,7 +120,7 @@ export default function PurchaseOrderDetail() {
           </div>
           <div className="text-left md:text-right">
             <p className="text-xl font-bold text-slate-900">PO No: {po.poNumber}</p>
-            <p className="text-sm text-slate-500 mt-1">Date: {new Date(po.orderDate).toLocaleDateString('en-IN')}</p>
+            <p className="text-sm text-slate-500 mt-1">Date: {po.poDate ? new Date(po.poDate).toLocaleDateString('en-IN') : new Date(po.createdAt || Date.now()).toLocaleDateString('en-IN')}</p>
             <div className="mt-3 inline-block">
               <Badge variant={variants[po.status] || 'default'} className="px-3 py-1 text-xs">
                 {po.status}
@@ -156,12 +156,12 @@ export default function PurchaseOrderDetail() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {po.items?.map((item, idx) => (
+              {po.lineItems?.map((item, idx) => (
                 <tr key={idx}>
                   <td className="px-4 py-4 font-bold text-slate-800">{item.medicineName}</td>
-                  <td className="px-4 py-4 text-center">{item.quantity}</td>
+                  <td className="px-4 py-4 text-center">{item.orderedQuantity}</td>
                   <td className="px-4 py-4 text-right">₹{Number(item.unitPrice).toFixed(2)}</td>
-                  <td className="px-4 py-4 text-right font-bold text-slate-800">₹{(Number(item.quantity) * Number(item.unitPrice)).toFixed(2)}</td>
+                  <td className="px-4 py-4 text-right font-bold text-slate-800">₹{(Number(item.lineTotal) || (Number(item.orderedQuantity) * Number(item.unitPrice))).toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
@@ -173,15 +173,15 @@ export default function PurchaseOrderDetail() {
           <div className="w-full md:w-80 space-y-4">
             <div className="flex justify-between text-slate-500 font-medium">
               <span>Subtotal</span>
-              <span>₹{(po.totalAmount - (po.taxAmount || 0)).toFixed(2)}</span>
+              <span>₹{Number(po.subtotal || 0).toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-slate-500 font-medium">
-              <span>Tax ({po.taxPercent || 0}%)</span>
-              <span>₹{Number(po.taxAmount || 0).toFixed(2)}</span>
+              <span>Tax (GST)</span>
+              <span>₹{Number(po.gstAmount || 0).toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-2xl font-black text-slate-900 pt-4 border-t border-slate-200">
               <span>Grand Total</span>
-              <span className="text-primary">₹{Number(po.totalAmount).toFixed(2)}</span>
+              <span className="text-primary">₹{Number(po.totalValue || 0).toFixed(2)}</span>
             </div>
           </div>
         </div>

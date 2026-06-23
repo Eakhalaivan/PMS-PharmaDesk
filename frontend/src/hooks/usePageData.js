@@ -19,19 +19,22 @@ export const usePageData = (queryKey, endpoint, extraParams = {}) => {
     queryKey: [queryKey, page, size, extraParams],
     queryFn: () => fetchWithRetry(endpoint, {
       params: { page, size, ...extraParams }
-    }).then(res => res.data.data || res.data),
+    }).then(res => {
+      // Handle both: Spring Page wrapper (ApiResponse.data = {content,totalElements,...})
+      // and flat list (ApiResponse.data = [...])
+      const payload = res.data?.data ?? res.data;
+      return payload;
+    }),
     staleTime: 5000,
+    placeholderData: (prev) => prev,
   });
 
-  // Cache the last successful response in a ref so stale data is shown while fresh data loads
   const lastDataRef = useRef(null);
   useEffect(() => {
-    if (query.data) {
-      lastDataRef.current = query.data;
-    }
+    if (query.data !== undefined) lastDataRef.current = query.data;
   }, [query.data]);
 
-  const activeData = query.data || lastDataRef.current;
+  const activeData = query.data ?? lastDataRef.current;
 
   const goToPage = (newPage) => {
     setSearchParams(prev => {
@@ -40,16 +43,19 @@ export const usePageData = (queryKey, endpoint, extraParams = {}) => {
     });
   };
 
+  // Normalise: if backend returned a Spring Page, use .content. If plain array, use as-is.
+  const isPage = activeData && !Array.isArray(activeData) && Array.isArray(activeData.content);
+
   return {
     ...query,
-    isLoading: query.isPending, // true only on initial load when no data
-    isFetching: query.isFetching, // true whenever a request is in flight
+    isLoading: query.isPending,
+    isFetching: query.isFetching,
     isError: query.isError,
     page,
     size,
     goToPage,
-    totalPages: activeData?.totalPages || 0,
-    totalElements: activeData?.totalElements || 0,
-    items: activeData?.content || activeData || [], // initialized to []
+    totalPages: isPage ? (activeData.totalPages ?? 0) : 0,
+    totalElements: isPage ? (activeData.totalElements ?? 0) : (Array.isArray(activeData) ? activeData.length : 0),
+    items: isPage ? activeData.content : (Array.isArray(activeData) ? activeData : []),
   };
 };

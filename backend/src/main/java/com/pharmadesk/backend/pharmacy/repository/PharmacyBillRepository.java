@@ -50,4 +50,8 @@ public interface PharmacyBillRepository extends JpaRepository<PharmacyBill, Long
     @Query(value = "SELECT DISTINCT b FROM PharmacyBill b LEFT JOIN FETCH b.items WHERE b.deleted = false ORDER BY b.billingDate DESC",
            countQuery = "SELECT COUNT(b) FROM PharmacyBill b WHERE b.deleted = false")
     Page<PharmacyBill> findAllWithItemsPaged(Pageable pageable);
+
+    @Query("SELECT COUNT(DISTINCT b.patientName) FROM PharmacyBill b WHERE b.billingDate BETWEEN :from AND :to AND b.deleted = false")
+    long countDistinctPatientNamesToday(@Param("from") java.time.LocalDateTime from,
+                                        @Param("to")   java.time.LocalDateTime to);
 }

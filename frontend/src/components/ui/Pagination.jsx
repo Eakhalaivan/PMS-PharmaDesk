@@ -9,9 +9,9 @@ export default function Pagination({
   onPageChange, 
   onPageSizeChange 
 }) {
-  const totalPages = Math.ceil(totalRecords / pageSize);
-  const startRecord = (currentPage - 1) * pageSize + 1;
-  const endRecord = Math.min(currentPage * pageSize, totalRecords);
+  const totalPages = pageSize === 'All' ? 1 : Math.ceil(totalRecords / pageSize);
+  const startRecord = pageSize === 'All' ? (totalRecords > 0 ? 1 : 0) : (currentPage - 1) * pageSize + 1;
+  const endRecord = pageSize === 'All' ? totalRecords : Math.min(currentPage * pageSize, totalRecords);
 
   const getPageNumbers = () => {
     const pages = [];
@@ -42,10 +42,11 @@ export default function Pagination({
           <label className="text-sm text-gray-500">Rows per page:</label>
           <select 
             value={pageSize}
-            onChange={(e) => onPageSizeChange(Number(e.target.value))}
+            onChange={(e) => onPageSizeChange(e.target.value === 'All' ? 'All' : Number(e.target.value))}
+            disabled={!onPageSizeChange}
             className="border border-gray-200 rounded-lg text-sm px-2 py-1 outline-none focus:ring-2 focus:ring-primary/20"
           >
-            {[10, 25, 50, 100].map(size => (
+            {[10, 25, 50, 100, 'All'].map(size => (
               <option key={size} value={size}>{size}</option>
             ))}
           </select>

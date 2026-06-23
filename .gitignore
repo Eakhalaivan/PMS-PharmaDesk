@@ -1,4 +1,25 @@
+# OS
 .DS_Store
+
+# IDEs
 .vscode/
 .idea/
+
+# Logs
 *.log
+logs/
+backend/logs/
+
+# Build dirs
+frontend/dist/
+frontend/build/
+backend/target/
+backend/build/
+
+# Node
+frontend/node_modules/
+node_modules/
+
+# Env
+.env
+.env.local

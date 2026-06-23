@@ -68,7 +68,7 @@ public class MedicineController {
         return ResponseEntity.ok(ApiResponse.success(dtos, "Medicines fetched successfully"));
     }
 
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','PHARMACY_STAFF')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_PHARMACY_STAFF')")
     @PostMapping("/medicines")
     public ResponseEntity<ApiResponse<Medicine>> createMedicine(@Valid @RequestBody Medicine medicine) {
         if (medicine.getMedicineCode() == null || medicine.getMedicineCode().trim().isEmpty()) {
@@ -79,7 +79,7 @@ public class MedicineController {
         return ResponseEntity.ok(ApiResponse.success(saved, "Medicine added successfully"));
     }
 
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','PHARMACY_STAFF')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_PHARMACY_STAFF')")
     @PutMapping("/medicines/{id}")
     public ResponseEntity<ApiResponse<MedicineDTO>> updateMedicine(@PathVariable Long id, @Valid @RequestBody Medicine medicineData) {
         return medicineRepository.findById(id).map(medicine -> {
@@ -160,7 +160,7 @@ public class MedicineController {
         return ResponseEntity.ok(ApiResponse.success(stockRepository.findAllWithMedicineAndSupplier(), "Stocks fetched successfully"));
     }
 
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','PHARMACY_STAFF')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_PHARMACY_STAFF')")
     @PostMapping("/stocks")
     public ResponseEntity<ApiResponse<MedicineStock>> addStock(@Valid @RequestBody MedicineStock stock) {
         // Ensure medicine is linked
@@ -173,7 +173,7 @@ public class MedicineController {
         return ResponseEntity.ok(ApiResponse.success(saved, "Stock updated successfully"));
     }
 
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','PHARMACY_STAFF')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_PHARMACY_STAFF')")
     @PostMapping("/stocks/adjust")
     public ResponseEntity<ApiResponse<StockAdjustment>> adjustStock(@Valid @RequestBody StockAdjustment adjustment) {
         MedicineStock stock = stockRepository.findById(adjustment.getMedicineStock().getId())
@@ -182,8 +182,16 @@ public class MedicineController {
         stock.setQuantityAvailable(stock.getQuantityAvailable() + adjustment.getAdjustedQuantity());
         stockRepository.save(stock);
         
-        // Also ensure medicine is set from stock
+        // Also ensure medicine and batchId are set from stock
         adjustment.setMedicine(stock.getMedicine());
+        adjustment.setBatchId(stock.getId());
+        adjustment.setAdjustmentType(adjustment.getAdjustedQuantity() > 0 ? "ADDITION" : "DEDUCTION");
+        
+        String username = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication().getName();
+        com.pharmadesk.backend.model.User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        adjustment.setAdjustedBy(user);
+        
         StockAdjustment saved = stockAdjustmentRepository.save(adjustment);
         return ResponseEntity.ok(ApiResponse.success(saved, "Stock adjusted successfully"));
     }
@@ -230,7 +238,7 @@ public class MedicineController {
         return ResponseEntity.ok(ApiResponse.success(valuation, "Valuation calculated"));
     }
 
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','PHARMACY_STAFF')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_PHARMACY_STAFF')")
     @PostMapping("/purchase-orders/auto-generate")
     public ResponseEntity<ApiResponse<String>> autoGeneratePOs() {
         List<Medicine> medicines = medicineRepository.findAll();
@@ -294,39 +302,41 @@ public class MedicineController {
                         arr -> ((Number) arr[1]).intValue()
                 ));
 
-        List<MedicineDTO> lowStock = medicines.stream()
+        List<Medicine> lowStockMedicines = medicines.stream()
                 .filter(m -> {
                     int qty = stockMap.getOrDefault(m.getId(), 0);
                     int rlvl = m.getReorderLevel() != null ? m.getReorderLevel() : 0;
                     return rlvl > 0 && qty <= rlvl;
                 })
+                .toList();
+
+        if (lowStockMedicines.isEmpty()) {
+            return ResponseEntity.ok(ApiResponse.success(List.of(), "Low stock medicines fetched"));
+        }
+
+        List<Long> lowStockMedIds = lowStockMedicines.stream().map(Medicine::getId).toList();
+        List<Object[]> supplierInfo = stockRepository.findSupplierNamesByMedicineIds(lowStockMedIds);
+        java.util.Map<Long, String> supplierMap = supplierInfo.stream()
+                .filter(arr -> arr[0] != null && arr[1] != null)
+                .collect(java.util.stream.Collectors.toMap(
+                        arr -> (Long) arr[0],
+                        arr -> (String) arr[1],
+                        (s1, s2) -> s1 // keep first if duplicates
+                ));
+
+        List<MedicineDTO> lowStock = lowStockMedicines.stream()
                 .map(m -> {
                     MedicineDTO dto = medicineMapper.toDto(m);
                     int qty = stockMap.getOrDefault(m.getId(), 0);
                     dto.setCurrentStock(qty);
-
-                    // Populate frontend-facing alias fields
                     dto.setMedicineName(m.getName());
 
-                    // Resolve supplier from the first non-deleted stock batch for this medicine
-                    stockRepository.findByMedicineIdAndDeletedFalse(m.getId())
-                        .stream()
-                        .filter(s -> s.getSupplier() != null)
-                        .findFirst()
-                        .ifPresent(s -> {
-                            dto.setSupplierVendor(s.getSupplier().getName());
-                            dto.setSupplierName(s.getSupplier().getName());
-                            dto.setLastUpdated(
-                                s.getDateOfEntry() != null
-                                    ? s.getDateOfEntry().toString()
-                                    : java.time.LocalDate.now().toString()
-                            );
-                        });
-
-                    // Fallback lastUpdated if no batch resolved a supplier
-                    if (dto.getLastUpdated() == null) {
-                        dto.setLastUpdated(java.time.LocalDate.now().toString());
+                    String supplierName = supplierMap.get(m.getId());
+                    if (supplierName != null) {
+                        dto.setSupplierVendor(supplierName);
+                        dto.setSupplierName(supplierName);
                     }
+                    dto.setLastUpdated(java.time.LocalDate.now().toString());
 
                     return dto;
                 })

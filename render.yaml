@@ -11,11 +11,21 @@ services:
       - key: SPRING_DATASOURCE_URL
         value: jdbc:mysql://gateway01.ap-southeast-1.prod.alicloud.tidbcloud.com:4000/pms?useSSL=true&enabledTLSProtocols=TLSv1.2,TLSv1.3&sslMode=REQUIRED
       - key: SPRING_DATASOURCE_USERNAME
-        value: 3ZMzEHamXVuJdSt.root
+        sync: false
       - key: SPRING_DATASOURCE_PASSWORD
-        value: o2ldKmVs3hjxipyi
+        sync: false
       - key: JWT_SECRET
-        value: a89f67d4e3b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7
+        sync: false
+      - key: SPRING_MAIL_HOST
+        value: smtp.gmail.com
+      - key: SPRING_MAIL_PORT
+        value: "587"
+      - key: SPRING_MAIL_USERNAME
+        sync: false
+      - key: SPRING_MAIL_PASSWORD
+        sync: false
+      - key: CORS_ALLOWED_ORIGIN
+        value: https://pharmacy-frontend.onrender.com
 
   # Frontend Web Service (Docker with Nginx)
   - type: web

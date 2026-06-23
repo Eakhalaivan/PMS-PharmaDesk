@@ -35,6 +35,7 @@ api.interceptors.response.use(
       if (error.config && !error.config.url.includes('/auth/login')) {
         // Token expired — clear and redirect to login
         localStorage.clear();
+        window.dispatchEvent(new Event('auth:expired'));
         window.location.href = '/login';
       }
     }

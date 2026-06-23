@@ -8,8 +8,8 @@ import org.hibernate.annotations.SQLRestriction;
 import java.math.BigDecimal;
 
 @Entity
-@Table(name = "pharmacy_bill_items")
-@SQLDelete(sql = "UPDATE pharmacy_bill_items SET is_deleted = true WHERE id=?")
+@Table(name = "sales_line_items")
+@SQLDelete(sql = "UPDATE sales_line_items SET is_deleted = true WHERE id=?")
 @SQLRestriction("is_deleted=false")
 public class PharmacyBillItem extends BaseEntity {
 

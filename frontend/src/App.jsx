@@ -8,7 +8,12 @@ import { Suspense, lazy } from 'react';
 import RoleGuard from './components/auth/RoleGuard';
 import { ROLES, DASHBOARD_ROUTES } from './config/roles.config';
 import { useAuth } from './context/AuthContext';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SystemProvider } from './context/SystemContext';
+import { LookupProvider } from './context/LookupContext';
+import { ConfigProvider } from './context/ConfigContext';
 
+const queryClient = new QueryClient();
 // Eager load critical pages to avoid Suspense hangs during auth flow
 import LoginPage from './pages/LoginPage';
 import AdminDashboard from './pages/AdminDashboard';
@@ -18,6 +23,7 @@ import PharmacyDashboard from './pages/PharmacyDashboard';
 const PharmacySales = lazy(() => import('./pages/PharmacySales'));
 const MedicineReturns = lazy(() => import('./pages/MedicineReturns'));
 const UserManagement = lazy(() => import('./pages/UserManagement'));
+const RoleManagementPanel = lazy(() => import('./pages/RoleManagementPanel'));
 const MedicineCreditBills = lazy(() => import('./pages/MedicineCreditBills'));
 const MedicineCreditReturns = lazy(() => import('./pages/MedicineCreditReturns'));
 const DirectPharmacySales = lazy(() => import('./pages/DirectPharmacySales'));
@@ -49,8 +55,10 @@ const BarcodeScanner = lazy(() => import('./pages/BarcodeScanner'));
 const InsuranceClaims = lazy(() => import('./pages/InsuranceClaims'));
 const GRNEntry = lazy(() => import('./pages/GRNEntry'));
 
+
 import AnalyticsLayout from './components/analytics/AnalyticsLayout';
 import AnalyticsDashboard from './pages/analytics/AnalyticsDashboard';
+const ForceChangePasswordPage = lazy(() => import('./pages/ForceChangePasswordPage'));
 import ABCAnalysis from './pages/analytics/ABCAnalysis';
 import MonthOverMonth from './pages/analytics/MonthOverMonth';
 
@@ -94,13 +102,24 @@ const LoadingFallback = () => (
 
 function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Toaster position="top-right" reverseOrder={false} />
-        <Suspense fallback={<LoadingFallback />}>
-          <Routes>
+    <QueryClientProvider client={queryClient}>
+      <ConfigProvider>
+        <SystemProvider>
+          <LookupProvider>
+            <AuthProvider>
+              <BrowserRouter>
+                <Toaster position="top-right" reverseOrder={false} />
+                <Suspense fallback={<LoadingFallback />}>
+                  <Routes>
             {/* Public route */}
             <Route path="/login" element={<LoginPage />} />
+
+            {/* Force change password route */}
+            <Route path="/force-change-password" element={
+              <ProtectedRoute>
+                <ForceChangePasswordPage />
+              </ProtectedRoute>
+            } />
 
             {/* Main app shell */}
             <Route path="/" element={
@@ -167,21 +186,26 @@ function App() {
                   <UserManagement />
                 </RoleGuard>
               } />
+              <Route path="roles" element={
+                <RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN]}>
+                  <RoleManagementPanel />
+                </RoleGuard>
+              } />
               
-              <Route path="credit-bills" element={<MedicineCreditBills />} />
-              <Route path="credit-returns" element={<MedicineCreditReturns />} />
-              <Route path="direct-sales" element={<DirectPharmacySales />} />
-              <Route path="direct-returns" element={<DirectMedicineReturns />} />
-              <Route path="return-worklists" element={<ReturnWorklists />} />
-              <Route path="dispense-worklists" element={<DispenseWorklists />} />
-              <Route path="advances" element={<PharmacyAdvances />} />
-              <Route path="consolidated-bills" element={<ConsolidatedBills />} />
-              <Route path="clearance" element={<PharmacyClearance />} />
-              <Route path="pending-prescriptions" element={<PendingPrescriptions />} />
-              <Route path="pending-replacement" element={<PendingPharmacyReplacement />} />
-              <Route path="pending-replacement-returns" element={<PendingReplacementReturns />} />
-              <Route path="performance" element={<ProductSalesPerformance />} />
-              <Route path="pending-indents" element={<PendingIndentPrescriptions />} />
+              <Route path="credit-bills" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.BILLING_STAFF, ROLES.PHARMACY_STAFF]}><MedicineCreditBills /></RoleGuard>} />
+              <Route path="credit-returns" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.BILLING_STAFF, ROLES.PHARMACY_STAFF]}><MedicineCreditReturns /></RoleGuard>} />
+              <Route path="direct-sales" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF]}><DirectPharmacySales /></RoleGuard>} />
+              <Route path="direct-returns" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF]}><DirectMedicineReturns /></RoleGuard>} />
+              <Route path="return-worklists" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF]}><ReturnWorklists /></RoleGuard>} />
+              <Route path="dispense-worklists" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF]}><DispenseWorklists /></RoleGuard>} />
+              <Route path="advances" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.BILLING_STAFF]}><PharmacyAdvances /></RoleGuard>} />
+              <Route path="consolidated-bills" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.BILLING_STAFF]}><ConsolidatedBills /></RoleGuard>} />
+              <Route path="clearance" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.BILLING_STAFF]}><PharmacyClearance /></RoleGuard>} />
+              <Route path="pending-prescriptions" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF]}><PendingPrescriptions /></RoleGuard>} />
+              <Route path="pending-replacement" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF]}><PendingPharmacyReplacement /></RoleGuard>} />
+              <Route path="pending-replacement-returns" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF]}><PendingReplacementReturns /></RoleGuard>} />
+              <Route path="performance" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.SUPERVISOR]}><ProductSalesPerformance /></RoleGuard>} />
+              <Route path="pending-indents" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.STOREKEEPER]}><PendingIndentPrescriptions /></RoleGuard>} />
               
               <Route path="suppliers" element={
                 <RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.STOREKEEPER]}>
@@ -209,7 +233,7 @@ function App() {
                   <PurchaseOrderDetail />
                 </RoleGuard>
               } />
-              <Route path="low-stock-alerts" element={<LowStockAlerts />} />
+              <Route path="low-stock-alerts" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF, ROLES.STOREKEEPER]}><LowStockAlerts /></RoleGuard>} />
               <Route path="expiry-tracker" element={
                 <RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.SUPERVISOR, ROLES.PHARMACY_STAFF, ROLES.STOREKEEPER]}>
                   <ExpiryTracker />
@@ -245,21 +269,31 @@ function App() {
                   <GRNEntry onBack={() => window.history.back()} />
                 </RoleGuard>
               } />
+              {/* Analytics */}
+              <Route path="analytics" element={
+                <RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.SUPERVISOR, ROLES.STOREKEEPER]}>
+                  <AnalyticsLayout />
+                </RoleGuard>
+              }>
+                <Route index element={<AnalyticsDashboard />} />
+                <Route path="abc" element={<ABCAnalysis />} />
+                <Route path="mom" element={<MonthOverMonth />} />
+              </Route>
+              
+
             </Route>
 
             {/* Redirects */}
-            {/* Analytics */}
-            <Route path="analytics" element={<AnalyticsLayout />}>
-              <Route index element={<AnalyticsDashboard />} />
-              <Route path="abc" element={<ABCAnalysis />} />
-              <Route path="mom" element={<MonthOverMonth />} />
-            </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
       </BrowserRouter>
-    </AuthProvider>
+            </AuthProvider>
+          </LookupProvider>
+        </SystemProvider>
+      </ConfigProvider>
+    </QueryClientProvider>
   );
 }
 

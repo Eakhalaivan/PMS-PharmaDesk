@@ -34,7 +34,10 @@ export default function UserFormModal({ isOpen, onClose, onSave, editingUser = n
         branch: editingUser.branch || 'MAIN_HOSPITAL',
         shift: editingUser.shift || 'MORNING',
         status: editingUser.status || 'ACTIVE',
-        roles: editingUser.roles ? editingUser.roles.map(r => r.name) : []
+        // roles from API are plain strings now (not {id, name} objects)
+        roles: editingUser.roles
+          ? editingUser.roles.map(r => typeof r === 'string' ? r : r.name).filter(Boolean)
+          : []
       });
     } else {
       setFormData({
@@ -66,7 +69,12 @@ export default function UserFormModal({ isOpen, onClose, onSave, editingUser = n
       toast.error('Please fill all required fields');
       return;
     }
-    onSave(formData);
+    // Sanitize: strip any null/undefined/blank role names before sending
+    const cleanData = {
+      ...formData,
+      roles: (formData.roles || []).filter(r => r != null && r !== '')
+    };
+    onSave(cleanData);
   };
 
   const handleRoleToggle = (roleName) => {

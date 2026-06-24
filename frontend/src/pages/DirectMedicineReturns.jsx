@@ -9,11 +9,12 @@ import Badge from '../components/ui/Badge';
 import { toast } from 'react-hot-toast';
 import pharmacyService from '../utils/pharmacyService';
 import PharmacyInvoice from '../components/pharmacy/PharmacyInvoice';
+import { useReturnsStore } from '../store/useReturnsStore';
 
 export default function DirectMedicineReturns() {
   const location = useLocation();
-  const [returnsList, setReturnsList] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { returnsList: allReturnsList, loading, fetchReturns } = useReturnsStore();
+  const returnsList = allReturnsList.filter(ret => ret.originalBill?.billType === 'OTC');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [billNumber, setBillNumber] = useState('');
   const [selectedBill, setSelectedBill] = useState(null);
@@ -26,24 +27,7 @@ export default function DirectMedicineReturns() {
 
   useEffect(() => {
     fetchReturns();
-  }, [location.key]);
-
-  const fetchReturns = async () => {
-    setLoading(true);
-    try {
-      const response = await pharmacyService.getAllReturns();
-      if (response && response.success) {
-        // Filter for returns where the original bill was OTC
-        const data = Array.isArray(response.data) ? response.data : [];
-        const otcReturns = data.filter(ret => ret.originalBill?.billType === 'OTC');
-        setReturnsList(otcReturns);
-      }
-    } catch (error) {
-      toast.error('Failed to load returns');
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [location.key, fetchReturns]);
 
   const loadBill = async () => {
     const trimmedNo = billNumber.trim();

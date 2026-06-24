@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils/cn';
-import { ROLES, ROLE_LABELS, DASHBOARD_ROUTES } from '../../config/roles.config';
+import { ROLES, ROLE_LABELS, DASHBOARD_ROUTES, getBaseRoleForUI } from '../../config/roles.config';
 import { AnimatePresence, motion } from 'framer-motion';
 import { 
   Building2, ShoppingCart, RotateCcw, LayoutDashboard, CreditCard,
@@ -11,7 +11,8 @@ import {
   BarChart3, ListTodo, Pill, LogOut, ChevronDown, Truck, Users,
   FileText, AlertTriangle, CalendarX, ShieldAlert, Thermometer,
   ShieldCheck, ScanBarcode, Shield, PlusCircle, Calendar,
-  TrendingUp, ClipboardCheck, FilePlus, ShoppingBag, BarChart2, UserCog, Zap, Package
+  TrendingUp, ClipboardCheck, FilePlus, ShoppingBag, BarChart2, UserCog, Zap, Package,
+  UserCircle, KeyRound
 } from 'lucide-react';
 
 const NAV_BY_ROLE = {
@@ -40,6 +41,11 @@ const NAV_BY_ROLE = {
     { name: 'Reports',                 path: '/reports',              icon: BarChart2 },
     { name: 'User Management',         path: '/users',                icon: UserCog },
     { name: 'Role Management',         path: '/roles',                icon: ShieldCheck },
+    { name: 'Pharmacy Advances',       path: '/advances',             icon: Banknote },
+    { name: 'Pharmacy Clearance',      path: '/clearance',            icon: FileCheck },
+    { name: 'Product Performance',     path: '/performance',          icon: TrendingUp },
+    { name: 'Profile Settings',        path: '/profile',              icon: UserCircle },
+    { name: 'Reset Password',          path: '/reset-password',       icon: KeyRound },
   ],
   PHARMACY_STAFF: [
     { name: 'Pharmacy Dashboard',      path: '/dashboard/pharmacy',   icon: LayoutDashboard },
@@ -52,6 +58,8 @@ const NAV_BY_ROLE = {
     { name: 'Drug Interactions',       path: '/drug-interactions',    icon: Zap },
     { name: 'Temperature Logs',        path: '/temperature-logs',     icon: Thermometer },
     { name: 'Narcotics Register',      path: '/narcotics',            icon: Shield },
+    { name: 'Profile Settings',        path: '/profile',              icon: UserCircle },
+    { name: 'Reset Password',          path: '/reset-password',       icon: KeyRound },
   ],
   BILLING_STAFF: [
     { name: 'Billing Dashboard',       path: '/dashboard/billing',    icon: LayoutDashboard },
@@ -60,6 +68,10 @@ const NAV_BY_ROLE = {
     { name: 'Consolidated Bills',      path: '/consolidated-bills',   icon: Receipt },
     { name: 'Patients',                path: '/patients',             icon: Users },
     { name: 'Insurance Claims',        path: '/insurance-claims',     icon: FileCheck },
+    { name: 'Pharmacy Advances',       path: '/advances',             icon: Banknote },
+    { name: 'Pharmacy Clearance',      path: '/clearance',            icon: FileCheck },
+    { name: 'Profile Settings',        path: '/profile',              icon: UserCircle },
+    { name: 'Reset Password',          path: '/reset-password',       icon: KeyRound },
   ],
   STOREKEEPER: [
     { name: 'Store Dashboard',         path: '/dashboard/store',      icon: LayoutDashboard },
@@ -70,24 +82,47 @@ const NAV_BY_ROLE = {
     { name: 'Low Stock Alerts',        path: '/low-stock-alerts',     icon: AlertTriangle },
     { name: 'Expiry Tracker',          path: '/expiry-tracker',       icon: Calendar },
     { name: 'Temperature Logs',        path: '/temperature-logs',     icon: Thermometer },
+    { name: 'Profile Settings',        path: '/profile',              icon: UserCircle },
+    { name: 'Reset Password',          path: '/reset-password',       icon: KeyRound },
   ],
   SUPERVISOR: [
     { name: 'Supervisor Dashboard',    path: '/dashboard/supervisor', icon: LayoutDashboard },
     { name: 'Return Worklists',        path: '/return-worklists',     icon: ClipboardList },
     { name: 'Analytics',               path: '/analytics',            icon: TrendingUp },
     { name: 'Reports',                 path: '/reports',              icon: BarChart2 },
+    { name: 'Profile Settings',        path: '/profile',              icon: UserCircle },
+    { name: 'Reset Password',          path: '/reset-password',       icon: KeyRound },
   ],
   RECEPTIONIST: [
-    { name: 'Reception Dashboard',     path: '/dashboard/receptionist', icon: LayoutDashboard },
+    { name: 'Reception Dashboard',     path: '/dashboard/reception', icon: LayoutDashboard },
     { name: 'Patients',                path: '/patients',             icon: Users },
+    { name: 'Profile Settings',        path: '/profile',              icon: UserCircle },
+    { name: 'Reset Password',          path: '/reset-password',       icon: KeyRound },
   ],
   MEDICAL_STAFF: [
     { name: 'Medical Dashboard',       path: '/dashboard/medical',    icon: LayoutDashboard },
     { name: 'Drug Interactions',       path: '/drug-interactions',    icon: Zap },
+    { name: 'Profile Settings',        path: '/profile',              icon: UserCircle },
+    { name: 'Reset Password',          path: '/reset-password',       icon: KeyRound },
   ],
   SENIOR_MEDICAL_STAFF: [
     { name: 'Senior Medical Dashboard',path: '/dashboard/senior-medical', icon: LayoutDashboard },
     { name: 'Drug Interactions',       path: '/drug-interactions',    icon: Zap },
+    { name: 'Profile Settings',        path: '/profile',              icon: UserCircle },
+    { name: 'Reset Password',          path: '/reset-password',       icon: KeyRound },
+  ],
+  AUDIT_COMPLIANCE: [
+    { name: 'Audit Dashboard',  path: '/dashboard/audit',   icon: LayoutDashboard },
+    { name: 'Reports',          path: '/reports',            icon: BarChart2 },
+    { name: 'Profile Settings', path: '/profile',            icon: UserCircle },
+    { name: 'Reset Password',   path: '/reset-password',     icon: KeyRound },
+  ],
+  LAB_TECHNICIAN: [
+    { name: 'Lab Dashboard',    path: '/dashboard/lab',      icon: LayoutDashboard },
+    { name: 'Medicine Master',  path: '/medicines',          icon: Pill },
+    { name: 'Drug Interactions',path: '/drug-interactions',  icon: Zap },
+    { name: 'Profile Settings', path: '/profile',            icon: UserCircle },
+    { name: 'Reset Password',   path: '/reset-password',     icon: KeyRound },
   ]
 };
 
@@ -121,9 +156,10 @@ export default function Sidebar() {
   };
 
   const currentRole = activeRole || roles?.[0] || 'SYSTEM_ADMIN';
-  const navItems = NAV_BY_ROLE[currentRole] || NAV_BY_ROLE.PHARMACY_STAFF;
+  const baseRole = getBaseRoleForUI(currentRole);
+  const navItems = NAV_BY_ROLE[baseRole] || NAV_BY_ROLE.PHARMACY_STAFF;
 
-  const getDashboardPath = () => DASHBOARD_ROUTES[currentRole] || '/dashboard/pharmacy';
+  const getDashboardPath = () => DASHBOARD_ROUTES[baseRole] || '/dashboard/pharmacy';
 
   return (
     <aside className="fixed top-0 left-0 h-screen w-72 bg-[#1B2A4A] text-white flex flex-col shadow-2xl z-20">
@@ -138,7 +174,7 @@ export default function Sidebar() {
       </div>
       
       {/* Role Switcher */}
-      {user?.roles?.length > 1 && (
+      {roles?.length > 1 && (
         <div className="px-4 py-3 border-b border-white/5 relative" ref={dropdownRef}>
           <button 
             onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
@@ -160,7 +196,7 @@ export default function Sidebar() {
                 transition={{ duration: 0.2 }}
                 className="absolute top-full left-4 right-4 mt-1 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 py-1 overflow-hidden"
               >
-                {user.roles.map(role => (
+                {roles.map(role => (
                   <button
                     key={role}
                     onClick={() => {

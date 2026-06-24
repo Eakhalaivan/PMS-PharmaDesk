@@ -66,7 +66,10 @@ export const usePOSStore = create((set) => ({
   setField: (field, value) => set({ [field]: value }),
 
   // Reset the entire form
-  resetForm: () => set(getInitialState()),
+  resetForm: () => {
+    Object.values(usePOSStore.getState()._nameChangeTimers || {}).forEach(clearTimeout);
+    set({ ...getInitialState(), _nameChangeTimers: {} });
+  },
 
   // Row Management
   addRow: () => set((state) => ({ rows: [...state.rows, createEmptyRow()] })),
@@ -110,8 +113,11 @@ export const usePOSStore = create((set) => ({
     patientSearchResults: []
   }),
 
+  _nameChangeTimers: {},
+
   // Handle Typing/Autocomplete Search in Rows
-  handleNameChange: async (idx, val) => {
+  handleNameChange: (idx, val) => {
+    // Immediate UI update
     set((state) => {
       const next = [...state.rows];
       next[idx] = { ...next[idx], codeName: val, searchResults: [] };
@@ -120,30 +126,38 @@ export const usePOSStore = create((set) => ({
 
     if (val.trim().length < 2) return;
 
-    try {
-      const res = await pharmacyService.searchStocks(val);
-      const data = res?.data || res || [];
-      set((state) => {
-        const next = [...state.rows];
-        if (next[idx]) {
-          next[idx] = { 
-            ...next[idx], 
-            searchResults: Array.isArray(data) ? data : [] 
-          };
-        }
-        return { rows: next };
-      });
-    } catch (err) {
-      console.error('Error searching stock in store:', err);
-      toast.error('Failed to search medicine inventory');
-      set((state) => {
-        const next = [...state.rows];
-        if (next[idx]) {
-          next[idx] = { ...next[idx], searchResults: [] };
-        }
-        return { rows: next };
-      });
-    }
+    // Debounce the API call per row index
+    const timers = usePOSStore.getState()._nameChangeTimers || {};
+    if (timers[idx]) clearTimeout(timers[idx]);
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await pharmacyService.searchStocks(val);
+        const data = res?.data || res || [];
+        set((state) => {
+          const next = [...state.rows];
+          if (next[idx]) {
+            next[idx] = { 
+              ...next[idx], 
+              searchResults: Array.isArray(data) ? data : [] 
+            };
+          }
+          return { rows: next };
+        });
+      } catch (err) {
+        console.error('Error searching stock in store:', err);
+        toast.error('Failed to search medicine inventory');
+        set((state) => {
+          const next = [...state.rows];
+          if (next[idx]) {
+            next[idx] = { ...next[idx], searchResults: [] };
+          }
+          return { rows: next };
+        });
+      }
+    }, 300);
+
+    set((state) => ({ _nameChangeTimers: { ...(state._nameChangeTimers || {}), [idx]: timer } }));
   },
 
   // Select item from Autocomplete

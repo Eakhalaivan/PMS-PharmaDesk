@@ -1,25 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, RefreshCw, Clock } from 'lucide-react';
-import { usePageData } from '../hooks/usePageData';
 import DataTable from '../components/ui/DataTable';
 import Pagination from '../components/ui/Pagination';
 import TableSkeleton from '../components/ui/TableSkeleton';
 import ErrorBanner from '../components/ui/ErrorBanner';
 import Badge from '../components/ui/Badge';
 import { toast } from 'react-hot-toast';
+import { useStockStore } from '../store/useStockStore';
 
 export default function LowStockAlerts() {
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
-  const { items, isLoading, isError, isFetching, page, totalElements, goToPage, refetch } = usePageData(
-    'low-stock-alerts',
-    '/pharmacy/stocks/low-stock'
-  );
+  const { 
+    lowStockItems: items, 
+    lowStockLoading: isLoading, 
+    lowStockError: isError, 
+    lowStockFetching: isFetching, 
+    lowStockPage: page, 
+    lowStockTotalElements: totalElements, 
+    setLowStockPage: goToPage, 
+    fetchLowStockAlerts: refetch 
+  } = useStockStore();
+
+  // Fetch initially
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
 
   // Real-time polling every 30 seconds
   useEffect(() => {
     const intervalId = setInterval(() => {
-      refetch().then(() => {
+      refetch(true).then(() => {
         setLastUpdated(new Date());
       }).catch(() => {
         console.warn('Low stock polling failed');
@@ -30,7 +41,7 @@ export default function LowStockAlerts() {
   }, [refetch]);
 
   const handleManualRefresh = () => {
-    refetch().then(() => {
+    refetch(true).then(() => {
       setLastUpdated(new Date());
       toast.success('Data refreshed successfully');
     }).catch(() => {

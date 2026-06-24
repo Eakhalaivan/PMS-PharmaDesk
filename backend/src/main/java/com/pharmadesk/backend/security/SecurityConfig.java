@@ -69,36 +69,18 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers("/actuator/**").hasAuthority("ROLE_SYSTEM_ADMIN")
 
+                // Allow authenticated users to update their own profile
+                .requestMatchers("/api/auth/users/*/profile").authenticated()
+
                 // Admin-only endpoints
                 .requestMatchers("/api/auth/users", "/api/auth/users/**").hasAuthority("ROLE_SYSTEM_ADMIN")
                 .requestMatchers("/api/auth/roles", "/api/auth/roles/**").hasAuthority("ROLE_SYSTEM_ADMIN")
 
-                // Analytics endpoints (must be before the pharmacy/** catch-all)
-                .requestMatchers("/api/analytics/**").hasAnyAuthority(
-                    "ROLE_SYSTEM_ADMIN", "ROLE_SUPERVISOR", "ROLE_STOREKEEPER"
-                )
+                // Analytics endpoints
+                .requestMatchers("/api/analytics/**").authenticated()
 
                 // Pharmacy endpoints
-                .requestMatchers("/api/pharmacy/medicines", "/api/pharmacy/medicines/**").hasAnyAuthority(
-                    "ROLE_SYSTEM_ADMIN", "ROLE_SUPERVISOR",
-                    "ROLE_SENIOR_MEDICAL_STAFF", "ROLE_MEDICAL_STAFF",
-                    "ROLE_PHARMACY_STAFF", "ROLE_STOREKEEPER",
-                    "ROLE_BILLING_STAFF"
-                )
-                .requestMatchers("/api/pharmacy/stocks", "/api/pharmacy/stocks/**").hasAnyAuthority(
-                    "ROLE_SYSTEM_ADMIN", "ROLE_SUPERVISOR",
-                    "ROLE_PHARMACY_STAFF", "ROLE_STOREKEEPER",
-                    "ROLE_SENIOR_MEDICAL_STAFF"
-                )
-                .requestMatchers("/api/pharmacy/sales", "/api/pharmacy/sales/**").hasAnyAuthority(
-                    "ROLE_SYSTEM_ADMIN", "ROLE_SUPERVISOR",
-                    "ROLE_BILLING_STAFF", "ROLE_PHARMACY_STAFF"
-                )
-                .requestMatchers("/api/pharmacy/returns", "/api/pharmacy/returns/**").hasAnyAuthority(
-                    "ROLE_SYSTEM_ADMIN", "ROLE_SUPERVISOR",
-                    "ROLE_BILLING_STAFF", "ROLE_PHARMACY_STAFF",
-                    "ROLE_MEDICAL_STAFF", "ROLE_SENIOR_MEDICAL_STAFF"
-                )
+                .requestMatchers("/api/pharmacy/**").authenticated()
                 .requestMatchers("/api/pharmacy/dashboard", "/api/pharmacy/dashboard/**").authenticated()
                 
                 // Other pharmacy sub-paths (advances, prescriptions, credit-bills, etc.)

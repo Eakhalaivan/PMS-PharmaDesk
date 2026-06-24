@@ -30,21 +30,21 @@ public class SupplierController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','STOREKEEPER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER')")
     public ResponseEntity<ApiResponse<Supplier>> createSupplier(@RequestBody Supplier supplier) {
         Supplier createdSupplier = supplierService.createSupplier(supplier);
         return ResponseEntity.ok(ApiResponse.success(createdSupplier, "Supplier created successfully"));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','STOREKEEPER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER')")
     public ResponseEntity<ApiResponse<Supplier>> updateSupplier(@PathVariable Long id, @RequestBody Supplier supplier) {
         Supplier updatedSupplier = supplierService.updateSupplier(id, supplier);
         return ResponseEntity.ok(ApiResponse.success(updatedSupplier, "Supplier updated successfully"));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','STOREKEEPER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER')")
     public ResponseEntity<ApiResponse<Void>> deleteSupplier(@PathVariable Long id) {
         supplierService.deleteSupplier(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Supplier deleted successfully"));
@@ -56,7 +56,7 @@ public class SupplierController {
     }
 
     @PostMapping("/{id}/performance")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN')")
     public ResponseEntity<ApiResponse<SupplierPerformance>> savePerformance(
             @PathVariable Long id, @RequestBody SupplierPerformance performance) {
         return ResponseEntity.ok(ApiResponse.success(supplierService.savePerformanceScore(id, performance), "Performance saved"));

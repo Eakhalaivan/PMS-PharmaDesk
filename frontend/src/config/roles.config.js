@@ -93,3 +93,22 @@ export const getRoleColor = (roleName) => {
   const normalized = roleName.replace(/ /g, '_').toUpperCase();
   return ROLE_COLORS[normalized] || ROLE_COLORS[roleName] || 'bg-gray-100 text-gray-700 border-gray-200';
 };
+
+export const getBaseRoleForUI = (role) => {
+  if (!role) return ROLES.PHARMACY_STAFF;
+  if (Object.values(ROLES).includes(role)) return role;
+  
+  const upper = role.toUpperCase();
+  if (upper.includes('ADMIN')) return ROLES.SYSTEM_ADMIN;
+  if (upper.includes('PHARMAC')) return ROLES.PHARMACY_STAFF;
+  if (upper.includes('BILL') || upper.includes('ACCOUNT') || upper.includes('CASH')) return ROLES.BILLING_STAFF;
+  if (upper.includes('STORE') || upper.includes('INVENT') || upper.includes('PURCHASE')) return ROLES.STOREKEEPER;
+  if (upper.includes('LAB') || upper.includes('PATHOLOG')) return ROLES.LAB_TECHNICIAN;
+  if (upper.includes('SUPERVISOR') || upper.includes('MANAGER')) return ROLES.SUPERVISOR;
+  if (upper.includes('RECEPTION') || upper.includes('FRONT')) return ROLES.RECEPTIONIST;
+  if (upper.includes('AUDIT') || upper.includes('COMPLIANCE')) return ROLES.AUDIT_COMPLIANCE;
+  if (upper.includes('SENIOR') && upper.includes('MEDIC')) return ROLES.SENIOR_MEDICAL_STAFF;
+  if (upper.includes('MEDIC') || upper.includes('DOCTOR') || upper.includes('PHYSICIAN') || upper.includes('NURS')) return ROLES.MEDICAL_STAFF;
+  
+  return ROLES.PHARMACY_STAFF;
+};

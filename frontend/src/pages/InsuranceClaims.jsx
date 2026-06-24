@@ -2,11 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Plus, RefreshCw, CheckCircle, Clock, XCircle, Save } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import pharmacyService from '../utils/pharmacyService';
+import { useBillingStore } from '../store/useBillingStore';
 
 export default function InsuranceClaims() {
-  const [claims, setClaims] = useState([]);
-  const [providers, setProviders] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const { claims, providers, claimsLoading: loading, loadClaimsData: loadData } = useBillingStore();
   const [submitting, setSubmitting] = useState(false);
 
   // New claim form state
@@ -23,24 +22,9 @@ export default function InsuranceClaims() {
     remarks: ''
   });
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const cRes = await pharmacyService.getInsuranceClaims();
-      const pRes = await pharmacyService.getInsuranceProviders();
-      
-      setClaims(cRes.data || cRes || []);
-      setProviders(pRes.data || pRes || []);
-    } catch {
-      toast.error('Failed to load insurance claims data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
     loadData();
-  }, []);
+  }, [loadData]);
 
   const handleCreateClaim = async (e) => {
     e.preventDefault();
@@ -125,6 +109,26 @@ export default function InsuranceClaims() {
           <button onClick={loadData} disabled={loading} className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
             <RefreshCw className={`w-4 h-4 text-slate-600 ${loading ? 'animate-spin' : ''}`} />
           </button>
+        </div>
+      </div>
+
+      {/* KPI Summary Row */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Claims</span>
+          <span className="text-2xl font-black text-slate-800 mt-1">{claims.length}</span>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Claimed Amount</span>
+          <span className="text-2xl font-black text-blue-600 mt-1">₹{claims.reduce((sum, c) => sum + (c.claimedAmount || 0), 0).toFixed(2)}</span>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Approved Amount</span>
+          <span className="text-2xl font-black text-emerald-600 mt-1">₹{claims.filter(c => c.status === 'APPROVED').reduce((sum, c) => sum + (c.claimedAmount || 0), 0).toFixed(2)}</span>
+        </div>
+        <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm flex flex-col">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Pending Count</span>
+          <span className="text-2xl font-black text-amber-600 mt-1">{claims.filter(c => c.status === 'SUBMITTED' || c.status === 'PENDING').length}</span>
         </div>
       </div>
 

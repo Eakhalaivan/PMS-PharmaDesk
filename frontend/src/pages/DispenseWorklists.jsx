@@ -7,34 +7,27 @@ import Pagination from '../components/ui/Pagination';
 import AppModal from '../components/ui/AppModal';
 import Badge from '../components/ui/Badge';
 import { toast } from 'react-hot-toast';
-import pharmacyService from '../utils/pharmacyService';
+import { useSalesStore } from '../store/useSalesStore';
 
 export default function DispenseWorklists() {
+  const {
+    worklists: filteredPrescriptions,
+    worklistsLoading: loading,
+    worklistsSearchTerm: searchTerm,
+    worklistsDateRange: dateRange,
+    setWorklistsSearch: setSearchTerm,
+    setWorklistsDateRange: setDateRange,
+    fetchWorklists: fetchPrescriptions
+  } = useSalesStore();
+
   const location = useLocation();
-  const [prescriptions, setPrescriptions] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [dateRange, setDateRange] = useState({ from: null, to: null });
 
   useEffect(() => {
     fetchPrescriptions();
   }, [location.key]);
-
-  const fetchPrescriptions = async () => {
-    try {
-      const response = await pharmacyService.getPendingPrescriptions();
-      if (response.success) {
-        setPrescriptions(response.data);
-      }
-    } catch (error) {
-      toast.error('Failed to fetch pending prescriptions');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const columns = [
     { header: 'S.No', render: (_, i) => i + 1 },
@@ -65,21 +58,7 @@ export default function DispenseWorklists() {
     )}
   ];
 
-  const filteredPrescriptions = prescriptions.filter(row => {
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = !searchTerm || 
-      row.id?.toString().includes(searchLower) ||
-      row.patientName?.toLowerCase().includes(searchLower) ||
-      row.doctorName?.toLowerCase().includes(searchLower);
-    
-    const prDate = new Date(row.prescriptionDate);
-    const normalizedPrDate = new Date(prDate.getFullYear(), prDate.getMonth(), prDate.getDate()).getTime();
-    
-    const matchesFrom = !dateRange.from || normalizedPrDate >= new Date(dateRange.from.getFullYear(), dateRange.from.getMonth(), dateRange.from.getDate()).getTime();
-    const matchesTo = !dateRange.to || normalizedPrDate <= new Date(dateRange.to.getFullYear(), dateRange.to.getMonth(), dateRange.to.getDate()).getTime();
-    
-    return matchesSearch && matchesFrom && matchesTo;
-  });
+  // Filtering logic is now handled in useSalesStore
 
   if (loading) return <div className="p-8 text-center text-slate-500 font-bold italic">Initialising Dispense Worklist...</div>;
 

@@ -39,6 +39,21 @@ public interface MedicineStockRepository extends JpaRepository<MedicineStock, Lo
     @Query("SELECT SUM(s.quantityAvailable * s.sellingRate) FROM MedicineStock s")
     java.math.BigDecimal findTotalStockValue();
 
+    @Query("SELECT SUM(s.purchaseRate * s.quantityAvailable) FROM MedicineStock s WHERE s.quantityAvailable > 0 AND s.deleted = false")
+    BigDecimal getTotalPurchaseValue();
+
+    @Query("SELECT SUM(s.sellingRate * s.quantityAvailable) FROM MedicineStock s WHERE s.quantityAvailable > 0 AND s.deleted = false")
+    BigDecimal getTotalMrpValue();
+
+    @Query("SELECT SUM(s.purchaseRate * s.quantityAvailable) FROM MedicineStock s WHERE s.quantityAvailable > 0 AND s.deleted = false AND s.expiryDate < CURRENT_DATE")
+    BigDecimal getExpiredValue();
+
+    @Query("SELECT SUM(s.purchaseRate * s.quantityAvailable) FROM MedicineStock s WHERE s.quantityAvailable > 0 AND s.deleted = false AND s.expiryDate >= CURRENT_DATE AND s.expiryDate <= :threshold")
+    BigDecimal getNearExpiryValue(@Param("threshold") java.time.LocalDate threshold);
+
+    @Query("SELECT s FROM MedicineStock s JOIN FETCH s.medicine LEFT JOIN FETCH s.supplier WHERE s.deleted = false AND s.quantityAvailable > 0")
+    List<MedicineStock> findAllActiveWithMedicineAndSupplier();
+
     @Query("""
       SELECT m.name, m.category, SUM(ms.quantityAvailable), m.reorderLevel, m.unit
       FROM MedicineStock ms JOIN ms.medicine m

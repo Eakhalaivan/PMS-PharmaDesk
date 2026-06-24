@@ -6,6 +6,7 @@ import com.pharmadesk.backend.pharmacy.service.DashboardService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,28 +21,30 @@ public class DashboardController {
         this.dashboardService = dashboardService;
     }
 
-    private String getPrimaryRole() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth == null || !auth.isAuthenticated()) {
-            return "SYSTEM_ADMIN";
-        }
-        return auth.getAuthorities().stream()
-                .map(a -> a.getAuthority().replace("ROLE_", ""))
-                .findFirst()
-                .orElse("SYSTEM_ADMIN");
-    }
+
 
     @GetMapping
-    public ApiResponse<DashboardKpiDTO> getDashboardKpis() {
-        String role = getPrimaryRole();
+    public ApiResponse<DashboardKpiDTO> getDashboardKpis(HttpServletRequest request) {
+        String role = getPrimaryRole(request);
         return ApiResponse.success(dashboardService.buildKpisForRole(role), "KPIs fetched successfully");
     }
 
     @GetMapping("/chart-data")
-    public ApiResponse<List<ChartDataPointDTO>> getChartData(@RequestParam(defaultValue = "SYSTEM_ADMIN") String role,
-                                                             @RequestParam(defaultValue = "7") int days) {
-        // Here we could use the passed role, or force the primary role
+    public ApiResponse<List<ChartDataPointDTO>> getChartData(
+            @RequestParam(defaultValue = "7") int days,
+            HttpServletRequest request) {
+        String role = getPrimaryRole(request);
         return ApiResponse.success(dashboardService.getChartData(role, days), "Chart data fetched successfully");
+    }
+
+    private String getPrimaryRole(HttpServletRequest request) {
+        String activeRole = request.getHeader("X-Active-Role");
+        if (activeRole != null && !activeRole.isBlank()) return activeRole;
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated()) return "SYSTEM_ADMIN";
+        return auth.getAuthorities().stream()
+                .map(a -> a.getAuthority().replace("ROLE_", ""))
+                .findFirst().orElse("SYSTEM_ADMIN");
     }
 
     @GetMapping("/alerts")

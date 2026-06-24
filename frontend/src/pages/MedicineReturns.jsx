@@ -9,11 +9,11 @@ import Badge from '../components/ui/Badge';
 import { toast } from 'react-hot-toast';
 import pharmacyService from '../utils/pharmacyService';
 import PharmacyInvoice from '../components/pharmacy/PharmacyInvoice';
+import { useReturnsStore } from '../store/useReturnsStore';
 
 export default function MedicineReturns() {
   const location = useLocation();
-  const [returnsList, setReturnsList] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { returnsList, loading, fetchReturns, approveReturn } = useReturnsStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [billNumber, setBillNumber] = useState('');
   const [selectedBill, setSelectedBill] = useState(null);
@@ -26,24 +26,7 @@ export default function MedicineReturns() {
 
   useEffect(() => {
     fetchReturns();
-  }, [location.key]);
-
-  const fetchReturns = async () => {
-    setLoading(true);
-    try {
-      const response = await pharmacyService.getAllReturns();
-      if (response && response.success) {
-        setReturnsList(Array.isArray(response.data) ? response.data : []);
-      } else {
-        setReturnsList([]);
-      }
-    } catch (error) {
-      // Silently handle – auth errors are handled by the api interceptor
-      setReturnsList([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [location.key, fetchReturns]);
 
   const loadBill = async () => {
     if (!billNumber) return;
@@ -115,13 +98,7 @@ export default function MedicineReturns() {
         {row.status === 'PENDING' && (
           <button 
             title="Approve" 
-            onClick={async () => {
-              try {
-                await pharmacyService.approveReturn(row.id);
-                toast.success('Return approved');
-                fetchReturns();
-              } catch (e) { toast.error('Approval failed'); }
-            }}
+            onClick={() => approveReturn(row.id)}
             className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg"
           >
             <CheckCircle className="w-4 h-4" />

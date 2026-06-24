@@ -26,7 +26,7 @@ public class PharmacyAdvanceController {
         return ResponseEntity.ok(ApiResponse.success(advanceRepository.findAll(), "Advances fetched"));
     }
 
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','BILLING_STAFF','SUPERVISOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_BILLING_STAFF','ROLE_SUPERVISOR')")
     @PostMapping
     public ResponseEntity<ApiResponse<PharmacyAdvance>> addAdvance(
             @RequestParam String patientName,

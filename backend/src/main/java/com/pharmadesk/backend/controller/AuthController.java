@@ -146,17 +146,42 @@ public class AuthController {
         if (userDto.getRoles() != null && !userDto.getRoles().isEmpty()) {
             Set<Role> roles = userDto.getRoles().stream()
                     .map(name -> roleRepository.findByName(name)
-                            .orElseGet(() -> {
-                                Role r = new Role();
-                                r.setName(name);
-                                return roleRepository.save(r);
-                            }))
+                            .orElseThrow(() -> new RuntimeException(
+                                    "Role not found: " + name + ". Valid roles: " +
+                                    roleRepository.findAll().stream()
+                                            .map(Role::getName)
+                                            .collect(Collectors.joining(", "))
+                            )))
                     .collect(Collectors.toSet());
             savedFirst.setRoles(roles);
         }
 
         User finalSaved = userRepository.save(savedFirst);
         return ResponseEntity.ok(ApiResponse.success(UserResponseDTO.from(finalSaved), "Staff created"));
+    }
+
+    @PutMapping("/users/{id}/profile")
+    public ResponseEntity<ApiResponse<UserResponseDTO>> updateProfile(@PathVariable Long id, @RequestBody Map<String, String> request, Principal principal) {
+        if (principal == null) {
+            return ResponseEntity.status(401).body(ApiResponse.error("Not authenticated"));
+        }
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!user.getUsername().equals(principal.getName())) {
+            return ResponseEntity.status(403).body(ApiResponse.error("Access denied: You can only update your own profile"));
+        }
+
+        if (request.containsKey("name")) user.setName(request.get("name"));
+        if (request.containsKey("email")) user.setEmail(request.get("email"));
+        if (request.containsKey("phone")) user.setPhone(request.get("phone"));
+        if (request.containsKey("branch")) user.setBranch(request.get("branch"));
+        if (request.containsKey("location")) user.setBranch(request.get("location"));
+        if (request.containsKey("shift")) user.setShift(request.get("shift"));
+
+        User savedUser = userRepository.save(user);
+        return ResponseEntity.ok(ApiResponse.success(UserResponseDTO.from(savedUser), "Profile updated successfully"));
     }
 
     @PutMapping("/users/{id}")
@@ -180,11 +205,12 @@ public class AuthController {
             Set<Role> roles = userDto.getRoles().stream()
                     .filter(name -> name != null && !name.isBlank())
                     .map(name -> roleRepository.findByName(name)
-                            .orElseGet(() -> {
-                                Role r = new Role();
-                                r.setName(name);
-                                return roleRepository.save(r);
-                            }))
+                            .orElseThrow(() -> new RuntimeException(
+                                    "Role not found: " + name + ". Valid roles: " +
+                                    roleRepository.findAll().stream()
+                                            .map(Role::getName)
+                                            .collect(Collectors.joining(", "))
+                            )))
                     .collect(Collectors.toSet());
             if (!roles.isEmpty()) {
                 user.setRoles(roles);

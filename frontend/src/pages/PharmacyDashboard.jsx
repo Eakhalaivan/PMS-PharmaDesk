@@ -77,7 +77,7 @@ export default function PharmacyDashboard() {
   // Low stock list
   const { data: lowStockData, isLoading: lowStockLoading } = useQuery({
     queryKey: ['dashboard-low-stock'],
-    queryFn: () => api.get('/pharmacy/dashboard/low-stock').then(r => r.data?.data || []),
+    queryFn: () => api.get('/pharmacy/stocks/low-stock').then(r => r.data?.data || []),
     refetchInterval: refreshInterval,
     staleTime: 30000,
     retry: 2,

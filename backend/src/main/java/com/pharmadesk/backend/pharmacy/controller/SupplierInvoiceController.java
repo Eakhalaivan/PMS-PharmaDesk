@@ -36,19 +36,19 @@ public class SupplierInvoiceController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','STOREKEEPER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER')")
     public ResponseEntity<ApiResponse<SupplierInvoice>> create(@RequestBody SupplierInvoice invoice) {
         return ResponseEntity.ok(ApiResponse.success(invoiceService.createInvoice(invoice), "Invoice created"));
     }
 
     @PostMapping("/{id}/match")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','STOREKEEPER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER')")
     public ResponseEntity<ApiResponse<SupplierInvoice>> performMatch(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(invoiceService.performMatching(id), "Matching completed"));
     }
 
     @PutMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','STOREKEEPER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER')")
     public ResponseEntity<ApiResponse<SupplierInvoice>> updateStatus(@PathVariable Long id, @RequestParam String status) {
         return ResponseEntity.ok(ApiResponse.success(invoiceService.updateStatus(id, status), "Status updated"));
     }

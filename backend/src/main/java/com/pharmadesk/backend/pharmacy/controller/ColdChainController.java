@@ -26,19 +26,19 @@ public class ColdChainController {
     }
 
     @PostMapping("/units")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR')")
     public ResponseEntity<ApiResponse<StorageUnit>> createUnit(@RequestBody StorageUnit unit) {
         return ResponseEntity.ok(ApiResponse.success(service.createStorageUnit(unit), "Storage unit created"));
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','STOREKEEPER','PHARMACIST')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER','ROLE_PHARMACIST')")
     public ResponseEntity<ApiResponse<TemperatureLog>> record(@RequestBody TemperatureLog log) {
         return ResponseEntity.ok(ApiResponse.success(service.recordTemperature(log), "Temperature recorded successfully"));
     }
 
     @PutMapping("/{id}/corrective-action")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR','PHARMACIST')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR','ROLE_PHARMACIST')")
     public ResponseEntity<ApiResponse<TemperatureLog>> correctiveAction(
             @PathVariable String id, @RequestParam String action, @RequestParam Long userId) {
         return ResponseEntity.ok(ApiResponse.success(service.recordCorrectiveAction(id, action, userId), "Corrective action recorded"));

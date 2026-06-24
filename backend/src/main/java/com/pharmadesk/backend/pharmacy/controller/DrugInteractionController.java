@@ -31,7 +31,7 @@ public class DrugInteractionController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR','ROLE_PHARMACY_OWNER')")
     public ResponseEntity<ApiResponse<DrugInteraction>> create(@RequestBody DrugInteraction interaction) {
         return ResponseEntity.ok(ApiResponse.success(service.createInteraction(interaction), "Adverse interaction rule added"));
     }
@@ -42,7 +42,7 @@ public class DrugInteractionController {
     }
 
     @GetMapping("/incident-report")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','AUDIT_COMPLIANCE','SUPERVISOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_AUDIT_COMPLIANCE','ROLE_SUPERVISOR','ROLE_PHARMACY_OWNER','ROLE_PHARMACY_STAFF')")
     public ResponseEntity<ApiResponse<List<DrugInteractionCheck>>> getIncidents() {
         return ResponseEntity.ok(ApiResponse.success(service.getIncidentReport(), "Interaction overrides and checks logged"));
     }

@@ -4,7 +4,8 @@ import ModuleFilterBar from '../components/ui/ModuleFilterBar';
 import DataTable from '../components/ui/DataTable';
 import Badge from '../components/ui/Badge';
 import { toast } from 'react-hot-toast';
-import api from '../utils/api';
+import { useUserStore } from '../store/useUserStore';
+import api from '../utils/api'; // Kept for handleResetPassword only
 import UserFormModal from '../components/ui/UserFormModal';
 import RoleManagementPanel from './RoleManagementPanel';
 import { getRoleColor, ROLE_LABELS } from '../config/roles.config';
@@ -12,10 +13,13 @@ import AppModal from '../components/ui/AppModal';
 import { formatDistanceToNow, format } from 'date-fns';
 
 export default function UserManagement() {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    users, loading, searchTerm, filteredUsers,
+    setSearch, startPolling, stopPolling,
+    createUser, updateUser, toggleUserStatus,
+  } = useUserStore();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   
   const [activeTab, setActiveTab] = useState('users');
   const [editingUser, setEditingUser] = useState(null);
@@ -27,56 +31,28 @@ export default function UserManagement() {
   const [isResetMode, setIsResetMode] = useState(false); // true = reset, false = create
 
   useEffect(() => {
-    fetchUsers();
-    // Auto-refresh every 30 seconds to keep login times current
-    const interval = setInterval(fetchUsers, 30000);
-    return () => clearInterval(interval);
+    startPolling();
+    return () => stopPolling();
   }, []);
 
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
-      const response = await api.get('/auth/users');
-      setUsers(Array.isArray(response.data) ? response.data : response.data.data || []);
-    } catch (error) {
-      toast.error('Failed to fetch users');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSave = async (formData) => {
-    try {
-      let response;
-      if (editingUser) {
-        response = await api.put(`/auth/users/${editingUser.id}`, formData);
-        toast.success('User updated successfully!');
-      } else {
-        response = await api.post('/auth/users', formData);
-        const newUser = response.data.data || response.data;
-        setCreatedUser({ ...newUser, password: formData.password });
+    if (editingUser) {
+      const ok = await updateUser(editingUser.id, formData);
+      if (ok) closeModal();
+    } else {
+      const res = await createUser(formData);
+      if (res.success) {
+        setCreatedUser({ ...res.data, password: formData.password });
         setIsResetMode(false);
         setIsCredentialModalOpen(true);
-        toast.success('User created successfully!');
+        closeModal();
       }
-      closeModal();
-      fetchUsers();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to save user');
     }
   };
 
   const handleToggleStatus = async (user, e) => {
     e.stopPropagation();
-    try {
-      const response = await api.put(`/auth/users/${user.id}/status`);
-      const updated = response.data.data || response.data;
-      const newStatus = updated.status || (user.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE');
-      toast.success(`User ${newStatus === 'ACTIVE' ? 'activated' : 'suspended'} successfully`);
-      fetchUsers();
-    } catch (error) {
-      toast.error('Failed to toggle user status');
-    }
+    await toggleUserStatus(user);
   };
 
   const handleResetPassword = async (user, e) => {
@@ -125,12 +101,7 @@ export default function UserManagement() {
     openDrawer(user, 'activity');
   };
 
-  const filteredUsers = users.filter(u => {
-    const term = searchTerm.toLowerCase();
-    return !searchTerm || 
-      u.name?.toLowerCase().includes(term) || 
-      u.username?.toLowerCase().includes(term);
-  });
+  const displayedUsers = filteredUsers();
 
   const formatTimestamp = (ts) => {
     if (!ts) return null;
@@ -302,7 +273,7 @@ export default function UserManagement() {
       {activeTab === 'users' ? (
         <>
           <ModuleFilterBar 
-            onSearch={setSearchTerm}
+            onSearch={setSearch}
             searchValue={searchTerm}
             actions={[
               { label: 'Add New User', icon: Plus, variant: 'primary', onClick: openAddModal }
@@ -310,7 +281,7 @@ export default function UserManagement() {
           />
 
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-x-auto">
-            <DataTable columns={columns} data={filteredUsers} loading={loading} onRowClick={(u) => openDrawer(u, 'profile')} hover striped />
+            <DataTable columns={columns} data={displayedUsers} loading={loading} onRowClick={(u) => openDrawer(u, 'profile')} hover striped />
           </div>
         </>
       ) : (

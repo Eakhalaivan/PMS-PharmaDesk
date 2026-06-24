@@ -63,37 +63,37 @@ public class PurchaseOrderController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','STOREKEEPER','PURCHASE_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER')")
     public ResponseEntity<ApiResponse<PurchaseOrder>> create(@RequestBody PurchaseOrder po) {
         return ResponseEntity.ok(ApiResponse.success(service.createPO(po), "PO created successfully"));
     }
 
     @PutMapping("/{id}/submit")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','STOREKEEPER','PURCHASE_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER')")
     public ResponseEntity<ApiResponse<PurchaseOrder>> submit(@PathVariable String id) {
         return ResponseEntity.ok(ApiResponse.success(service.submitForApproval(id), "PO submitted"));
     }
 
     @PutMapping("/{id}/approve")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR','PURCHASE_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR','ROLE_STOREKEEPER')")
     public ResponseEntity<ApiResponse<PurchaseOrder>> approve(@PathVariable String id, @RequestParam Long userId) {
         return ResponseEntity.ok(ApiResponse.success(service.approvePO(id, userId), "PO approved"));
     }
 
     @PutMapping("/{id}/send")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','PURCHASE_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN')")
     public ResponseEntity<ApiResponse<PurchaseOrder>> send(@PathVariable String id) {
         return ResponseEntity.ok(ApiResponse.success(service.sendToSupplier(id), "PO sent to supplier"));
     }
 
     @PutMapping("/{id}/cancel")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','PURCHASE_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_PURCHASE_MANAGER')")
     public ResponseEntity<ApiResponse<PurchaseOrder>> cancel(@PathVariable String id, @RequestParam String reason, @RequestParam Long userId) {
         return ResponseEntity.ok(ApiResponse.success(service.cancelPO(id, reason, userId), "PO cancelled"));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','PURCHASE_MANAGER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable String id) {
         service.deletePO(id);
         return ResponseEntity.ok(ApiResponse.success(null, "PO deleted successfully"));

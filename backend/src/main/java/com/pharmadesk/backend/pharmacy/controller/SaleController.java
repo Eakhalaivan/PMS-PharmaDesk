@@ -26,7 +26,7 @@ public class SaleController {
         this.pharmacyBillRepository = pharmacyBillRepository;
     }
 
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','BILLING_STAFF','SUPERVISOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_BILLING_STAFF','ROLE_SUPERVISOR','ROLE_PHARMACY_STAFF')")
     @PostMapping
     public ResponseEntity<ApiResponse<PharmacyBill>> createSale(@Valid @RequestBody SaleRequestDTO request) {
         PharmacyBill bill = saleService.processSale(request);
@@ -58,7 +58,7 @@ public class SaleController {
         return ResponseEntity.ok(ApiResponse.success(bill, "Bill fetched"));
     }
 
-    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_SYSTEM_ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteSale(@PathVariable Long id) {
         saleService.cancelSale(id);

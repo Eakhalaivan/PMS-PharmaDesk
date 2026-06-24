@@ -6,15 +6,17 @@ import Pagination from '../components/ui/Pagination';
 import AppModal from '../components/ui/AppModal';
 import Badge from '../components/ui/Badge';
 import { toast } from 'react-hot-toast';
-import pharmacyService from '../utils/pharmacyService';
+import { usePatientStore } from '../store/usePatientStore';
 
 export default function Patients() {
-  const [patients, setPatients] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    patients, loading, searchTerm, filteredPatients,
+    setSearch, fetchPatients, createPatient, updatePatient, deletePatient
+  } = usePatientStore();
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
   
   // Form State
   const [formData, setFormData] = useState({
@@ -30,35 +32,13 @@ export default function Patients() {
     fetchPatients();
   }, []);
 
-  const fetchPatients = async () => {
-    setLoading(true);
-    try {
-      const response = await pharmacyService.getPatients();
-      if (response.success) {
-        setPatients(response.data);
-      }
-    } catch (error) {
-      toast.error('Failed to fetch patients');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleCreate = async () => {
     if (!formData.name) {
       toast.error('Patient name is required');
       return;
     }
-    try {
-      const response = await pharmacyService.createPatient(formData);
-      if (response.success) {
-        toast.success('Patient registered successfully!');
-        closeModal();
-        fetchPatients();
-      }
-    } catch (error) {
-      toast.error('Failed to register patient');
-    }
+    const ok = await createPatient(formData);
+    if (ok) closeModal();
   };
 
   const handleUpdate = async () => {
@@ -66,29 +46,13 @@ export default function Patients() {
       toast.error('Patient name is required');
       return;
     }
-    try {
-      const response = await pharmacyService.updatePatient(selectedPatient.id, formData);
-      if (response.success) {
-        toast.success('Patient details updated!');
-        closeModal();
-        fetchPatients();
-      }
-    } catch (error) {
-      toast.error('Failed to update patient');
-    }
+    const ok = await updatePatient(selectedPatient.id, formData);
+    if (ok) closeModal();
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this patient record?')) return;
-    try {
-      const response = await pharmacyService.deletePatient(id);
-      if (response.success) {
-        toast.success('Patient record deleted');
-        fetchPatients();
-      }
-    } catch (error) {
-      toast.error('Failed to delete patient');
-    }
+    await deletePatient(id);
   };
 
   const openAddModal = () => {
@@ -125,13 +89,7 @@ export default function Patients() {
     setSelectedPatient(null);
   };
 
-  const filteredPatients = patients.filter(p => {
-    const q = searchTerm.toLowerCase();
-    return !searchTerm || 
-      p.name.toLowerCase().includes(q) || 
-      p.uhid?.toLowerCase().includes(q) ||
-      p.phone?.toLowerCase().includes(q);
-  });
+  const displayedPatients = filteredPatients();
 
   const columns = [
     { header: 'S.No', render: (_, i) => i + 1 },
@@ -212,7 +170,7 @@ export default function Patients() {
       </div>
 
       <ModuleFilterBar 
-        onSearch={setSearchTerm}
+        onSearch={setSearch}
         searchValue={searchTerm}
         actions={[
           { label: 'Register New Patient', icon: Plus, variant: 'primary', onClick: openAddModal }
@@ -220,8 +178,8 @@ export default function Patients() {
       />
 
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <DataTable columns={columns} data={filteredPatients} hover striped />
-        <Pagination totalRecords={filteredPatients.length} currentPage={1} pageSize={10} onPageChange={() => {}} onPageSizeChange={() => {}} />
+        <DataTable columns={columns} data={displayedPatients} hover striped />
+        <Pagination totalRecords={displayedPatients.length} currentPage={1} pageSize={10} onPageChange={() => {}} onPageSizeChange={() => {}} />
       </div>
 
       {/* Add/Edit Modal */}

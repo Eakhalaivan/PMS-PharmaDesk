@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Search, Package, CheckCircle2, AlertCircle, Plus, Trash2, Save } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import pharmacyService from '../utils/pharmacyService';
+import { useSupplierStore } from '../store/useSupplierStore';
 
 const REJECTION_REASONS = ['Damaged', 'Wrong Item', 'Short Expiry', 'Quality Fail'];
 const EMPTY_ITEM = {
@@ -11,9 +12,10 @@ const EMPTY_ITEM = {
 };
 
 export default function GRNEntry({ onBack }) {
+  const { suppliers, fetchSuppliers } = useSupplierStore();
+  
   const [poSearch, setPoSearch] = useState('');
   const [po, setPo] = useState(null);
-  const [suppliers, setSuppliers] = useState([]);
   const [selectedSupplierId, setSelectedSupplierId] = useState('');
   const [items, setItems] = useState([EMPTY_ITEM]);
   const [invoiceNumber, setInvoiceNumber] = useState('');
@@ -24,10 +26,8 @@ export default function GRNEntry({ onBack }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    pharmacyService.getSuppliers().then(res => {
-      if (res.success) setSuppliers(res.data);
-    });
-  }, []);
+    fetchSuppliers();
+  }, [fetchSuppliers]);
 
   const loadPo = async () => {
     if (!poSearch.trim()) return;

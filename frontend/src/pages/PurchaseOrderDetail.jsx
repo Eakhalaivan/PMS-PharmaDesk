@@ -6,35 +6,29 @@ import Badge from '../components/ui/Badge';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { ROLES } from '../config/roles.config';
+import { usePurchaseStore } from '../store/usePurchaseStore';
 
 export default function PurchaseOrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { activeRole } = useAuth();
   
-  const [po, setPo] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isError, setIsError] = useState(false);
+  const { 
+    selectedPo: po, 
+    poDetailLoading: isLoading, 
+    poDetailError: isError,
+    fetchPoDetail,
+    clearPoDetail
+  } = usePurchaseStore();
+  
   const [isUpdating, setIsUpdating] = useState(false);
   
   const printRef = useRef();
 
   useEffect(() => {
-    const fetchPO = async () => {
-      try {
-        setIsLoading(true);
-        // Using api.get instead of fetchWithRetry since this is a single record fetch
-        const response = await pharmacyService.api.get(`/pharmacy/purchase-orders/${id}`);
-        setPo(response.data?.data || response.data);
-        setIsError(false);
-      } catch (err) {
-        setIsError(true);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchPO();
-  }, [id]);
+    fetchPoDetail(id);
+    return () => clearPoDetail();
+  }, [id, fetchPoDetail, clearPoDetail]);
 
   const handlePrint = () => {
     window.print();
@@ -45,7 +39,7 @@ export default function PurchaseOrderDetail() {
     try {
       await pharmacyService.api.put(`/pharmacy/purchase-orders/${id}/status`, { status: newStatus });
       toast.success(`Purchase Order marked as ${newStatus}`);
-      setPo(prev => ({ ...prev, status: newStatus }));
+      fetchPoDetail(id);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to update status');
     } finally {

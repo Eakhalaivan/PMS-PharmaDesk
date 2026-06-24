@@ -39,7 +39,7 @@ public class CreditBillController {
         return ResponseEntity.ok(ApiResponse.success(creditBillRepository.findAll(), "Credit bills fetched"));
     }
 
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','BILLING_STAFF','SUPERVISOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_BILLING_STAFF','ROLE_SUPERVISOR')")
     @PostMapping("/{id}/payment")
     @Transactional
     public ResponseEntity<ApiResponse<PaymentTransaction>> addPayment(

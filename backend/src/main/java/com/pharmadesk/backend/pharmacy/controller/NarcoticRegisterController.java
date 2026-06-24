@@ -38,7 +38,7 @@ public class NarcoticRegisterController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','AUDIT_COMPLIANCE','SUPERVISOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_AUDIT_COMPLIANCE','ROLE_SUPERVISOR')")
     public ResponseEntity<ApiResponse<List<NarcoticRegister>>> getRegister(
             @RequestParam Long medicineId,
             @RequestParam String from,
@@ -50,7 +50,7 @@ public class NarcoticRegisterController {
     }
 
     @PostMapping("/entry")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR','PHARMACY_STAFF')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR','ROLE_PHARMACY_STAFF')")
     public ResponseEntity<ApiResponse<NarcoticRegister>> createEntry(@RequestBody NarcoticRegister entry) {
         // Validation and opening/closing balance calculation
         var medicine = medicineRepository.findById(entry.getMedicine().getId())
@@ -77,7 +77,7 @@ public class NarcoticRegisterController {
     }
 
     @GetMapping("/monthly-reconciliation")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','AUDIT_COMPLIANCE','SUPERVISOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_AUDIT_COMPLIANCE','ROLE_SUPERVISOR')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getMonthlyReconciliation(
             @RequestParam Long medicineId,
             @RequestParam int month,

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Plus, Eye, Printer, XCircle, Trash2, PlusCircle, Barcode } from 'lucide-react';
 import ModuleFilterBar from '../components/ui/ModuleFilterBar';
 import DataTable from '../components/ui/DataTable';
@@ -8,15 +8,21 @@ import Badge from '../components/ui/Badge';
 import { toast } from 'react-hot-toast';
 import pharmacyService from '../utils/pharmacyService';
 import PharmacyInvoice from '../components/pharmacy/PharmacyInvoice';
-import { usePageData } from '../hooks/usePageData';
-import useDebounce from '../hooks/useDebounce';
+import { useSalesStore } from '../store/useSalesStore';
 import TableSkeleton from '../components/ui/TableSkeleton';
 import ErrorBanner from '../components/ui/ErrorBanner';
-import { useSearchParams } from 'react-router-dom';
 
 export default function PharmacySales() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  
+  const {
+    salesList, salesLoading: isLoading, salesError: isError, salesPage: page, 
+    salesTotalElements: totalElements, salesSearchTerm: searchTerm, salesDateRange: dateRange,
+    setSalesSearch, setSalesDateRange, setSalesPage, fetchSales
+  } = useSalesStore();
+
+  useEffect(() => {
+    fetchSales();
+  }, []);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -30,36 +36,7 @@ export default function PharmacySales() {
   const [doctorName, setDoctorName] = useState('');
   const [paymentMode, setPaymentMode] = useState('CASH');
   
-  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
-  const debouncedSearch = useDebounce(searchTerm, 500);
-  
   const [barcodeInput, setBarcodeInput] = useState('');
-  
-  const [dateRange, setDateRange] = useState({ 
-    from: searchParams.get('from') ? new Date(searchParams.get('from')) : null, 
-    to: searchParams.get('to') ? new Date(searchParams.get('to')) : null 
-  });
-
-  // Sync back to URL when filters change
-  React.useEffect(() => {
-    setSearchParams(prev => {
-      if (debouncedSearch) prev.set('search', debouncedSearch); else prev.delete('search');
-      if (dateRange.from) prev.set('from', dateRange.from.toISOString()); else prev.delete('from');
-      if (dateRange.to) prev.set('to', dateRange.to.toISOString()); else prev.delete('to');
-      prev.set('page', '0'); // reset to page 1 on filter change
-      return prev;
-    }, { replace: true });
-  }, [debouncedSearch, dateRange.from, dateRange.to, setSearchParams]);
-
-  const { items: salesList, isLoading, isError, page, totalPages, totalElements, goToPage, refetch } = usePageData(
-    'pharmacy-sales',
-    '/pharmacy/sales',
-    { 
-      searchTerm: debouncedSearch, 
-      fromDate: dateRange.from?.toISOString(), 
-      toDate: dateRange.to?.toISOString() 
-    }
-  );
 
   const [salesItems, setSalesItems] = useState([
     { id: 1, stockId: null, name: '', batch: '', expiry: '', qty: 1, rate: 0, gstPercent: 0, gstAmount: 0, amount: 0 }
@@ -167,7 +144,7 @@ export default function PharmacySales() {
         toast.success('Bill saved successfully!');
         setIsModalOpen(false);
         resetModal();
-        refetch();
+        fetchSales();
         if (options.shouldPrint) {
           const billData = response.data || response;
           const fullBill = await pharmacyService.getSaleByNumber(billData.billNumber);
@@ -188,7 +165,7 @@ export default function PharmacySales() {
         toast.success(response.message || 'Bill cancelled successfully');
         setIsDeleteModalOpen(false);
         setBillToDelete(null);
-        refetch();
+        fetchSales();
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to cancel bill');
@@ -249,10 +226,10 @@ export default function PharmacySales() {
       </div>
 
       <ModuleFilterBar
-        onSearch={setSearchTerm}
+        onSearch={setSalesSearch}
         searchValue={searchTerm}
         dateRange={dateRange}
-        onDateChange={(type, val) => setDateRange(prev => ({ ...prev, [type]: val }))}
+        onDateChange={(type, val) => setSalesDateRange({ ...dateRange, [type]: val })}
         actions={[
           { label: 'New Sale', icon: Plus, variant: 'primary', onClick: () => setIsModalOpen(true) }
         ]}
@@ -261,7 +238,7 @@ export default function PharmacySales() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         {isError ? (
           <div className="p-6">
-            <ErrorBanner onRetry={refetch} />
+            <ErrorBanner onRetry={fetchSales} />
           </div>
         ) : isLoading ? (
           <TableSkeleton rows={5} columns={8} />
@@ -275,7 +252,7 @@ export default function PharmacySales() {
                 totalRecords={totalElements}
                 currentPage={page + 1}
                 pageSize={20}
-                onPageChange={(p) => goToPage(p - 1)}
+                onPageChange={(p) => setSalesPage(p - 1)}
               />
             )}
           </>

@@ -6,7 +6,7 @@ import MainLayout from './components/layout/MainLayout';
 import { Toaster } from 'react-hot-toast';
 import { Suspense, lazy } from 'react';
 import RoleGuard from './components/auth/RoleGuard';
-import { ROLES, DASHBOARD_ROUTES } from './config/roles.config';
+import { ROLES, DASHBOARD_ROUTES, getBaseRoleForUI } from './config/roles.config';
 import { useAuth } from './context/AuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SystemProvider } from './context/SystemContext';
@@ -41,6 +41,10 @@ const PendingIndentPrescriptions = lazy(() => import('./pages/PendingIndentPresc
 const MedicineMaster = lazy(() => import('./pages/MedicineMaster'));
 const MedicineStock = lazy(() => import('./pages/MedicineStock'));
 const RoleDashboard = lazy(() => import('./pages/RoleDashboard'));
+const BillingDashboard = lazy(() => import('./pages/BillingDashboard'));
+const StorekeeperDashboard = lazy(() => import('./pages/StorekeeperDashboard'));
+const MedicalDashboard = lazy(() => import('./pages/MedicalDashboard'));
+const SupervisorDashboard = lazy(() => import('./pages/SupervisorDashboard'));
 const Suppliers = lazy(() => import('./pages/Suppliers'));
 const Patients = lazy(() => import('./pages/Patients'));
 const Reports = lazy(() => import('./pages/Reports'));
@@ -61,6 +65,8 @@ import AnalyticsDashboard from './pages/analytics/AnalyticsDashboard';
 const ForceChangePasswordPage = lazy(() => import('./pages/ForceChangePasswordPage'));
 import ABCAnalysis from './pages/analytics/ABCAnalysis';
 import MonthOverMonth from './pages/analytics/MonthOverMonth';
+const ProfileSettings = lazy(() => import('./pages/ProfileSettings'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 
 const RootRedirect = () => {
   const { activeRole, roles, loading, isAuthenticated } = useAuth();
@@ -80,7 +86,8 @@ const RootRedirect = () => {
 
     // Find the first role that has a dashboard route
     const roleToUse = activeRole || (roles && roles[0]) || 'SYSTEM_ADMIN';
-    const target = DASHBOARD_ROUTES[roleToUse] || '/dashboard/admin';
+    const baseRole = getBaseRoleForUI(roleToUse);
+    const target = DASHBOARD_ROUTES[baseRole] || '/dashboard/pharmacy';
 
     console.log('RootRedirect: Authenticated, target is', target, 'current is', location.pathname);
     
@@ -133,15 +140,15 @@ function App() {
               <Route path="dashboard">
                 <Route index element={<RootRedirect />} />
                 <Route path="admin" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN]}><AdminDashboard /></RoleGuard>} />
-                <Route path="supervisor" element={<RoleGuard allowedRoles={[ROLES.SUPERVISOR]}><RoleDashboard title="Supervisor Dashboard" description="Team activity feed, pending approvals queue" /></RoleGuard>} />
-                <Route path="senior-medical" element={<RoleGuard allowedRoles={[ROLES.SENIOR_MEDICAL_STAFF]}><RoleDashboard title="Senior Medical Dashboard" description="Prescription queue, patient history" /></RoleGuard>} />
-                <Route path="medical" element={<RoleGuard allowedRoles={[ROLES.MEDICAL_STAFF]}><RoleDashboard title="Medical Staff Dashboard" description="Dispense worklist, tasks" /></RoleGuard>} />
-                <Route path="billing" element={<RoleGuard allowedRoles={[ROLES.BILLING_STAFF]}><RoleDashboard title="Billing Dashboard" description="Bill queue, advances, clearance list" /></RoleGuard>} />
+                <Route path="supervisor" element={<RoleGuard allowedRoles={[ROLES.SUPERVISOR]}><SupervisorDashboard /></RoleGuard>} />
+                <Route path="senior-medical" element={<RoleGuard allowedRoles={[ROLES.SENIOR_MEDICAL_STAFF]}><MedicalDashboard /></RoleGuard>} />
+                <Route path="medical" element={<RoleGuard allowedRoles={[ROLES.MEDICAL_STAFF]}><MedicalDashboard /></RoleGuard>} />
+                <Route path="billing" element={<RoleGuard allowedRoles={[ROLES.BILLING_STAFF]}><BillingDashboard /></RoleGuard>} />
                 <Route path="pharmacy" element={<RoleGuard allowedRoles={[ROLES.PHARMACY_STAFF]}><PharmacyDashboard /></RoleGuard>} />
                 <Route path="reception" element={<RoleGuard allowedRoles={[ROLES.RECEPTIONIST]}><RoleDashboard title="Reception Dashboard" description="Patient registration, appointments" /></RoleGuard>} />
                 <Route path="audit" element={<RoleGuard allowedRoles={[ROLES.AUDIT_COMPLIANCE]}><RoleDashboard title="Audit & Compliance Dashboard" description="Read-only report viewer, logs" /></RoleGuard>} />
                 <Route path="lab" element={<RoleGuard allowedRoles={[ROLES.LAB_TECHNICIAN]}><RoleDashboard title="Lab Technician Dashboard" description="Lab requests, reports" /></RoleGuard>} />
-                <Route path="store" element={<RoleGuard allowedRoles={[ROLES.STOREKEEPER]}><RoleDashboard title="Storekeeper Dashboard" description="Purchase orders, stock management" /></RoleGuard>} />
+                <Route path="store" element={<RoleGuard allowedRoles={[ROLES.STOREKEEPER]}><StorekeeperDashboard /></RoleGuard>} />
               </Route>
 
               {/* Shared Modules */}
@@ -196,7 +203,7 @@ function App() {
               <Route path="credit-returns" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.BILLING_STAFF, ROLES.PHARMACY_STAFF]}><MedicineCreditReturns /></RoleGuard>} />
               <Route path="direct-sales" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF]}><DirectPharmacySales /></RoleGuard>} />
               <Route path="direct-returns" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF]}><DirectMedicineReturns /></RoleGuard>} />
-              <Route path="return-worklists" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF]}><ReturnWorklists /></RoleGuard>} />
+              <Route path="return-worklists" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF, ROLES.SUPERVISOR]}><ReturnWorklists /></RoleGuard>} />
               <Route path="dispense-worklists" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.PHARMACY_STAFF]}><DispenseWorklists /></RoleGuard>} />
               <Route path="advances" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.BILLING_STAFF]}><PharmacyAdvances /></RoleGuard>} />
               <Route path="consolidated-bills" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.BILLING_STAFF]}><ConsolidatedBills /></RoleGuard>} />
@@ -218,7 +225,7 @@ function App() {
                 </RoleGuard>
               } />
               <Route path="reports" element={
-                <RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.SUPERVISOR]}>
+                <RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN, ROLES.SUPERVISOR, ROLES.AUDIT_COMPLIANCE]}>
                   <Reports />
                 </RoleGuard>
               } />
@@ -280,6 +287,8 @@ function App() {
                 <Route path="mom" element={<MonthOverMonth />} />
               </Route>
               
+              <Route path="profile" element={<ProfileSettings />} />
+              <Route path="reset-password" element={<ResetPassword />} />
 
             </Route>
 

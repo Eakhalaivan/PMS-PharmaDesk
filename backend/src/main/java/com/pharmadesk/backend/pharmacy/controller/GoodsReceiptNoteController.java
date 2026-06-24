@@ -40,19 +40,19 @@ public class GoodsReceiptNoteController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','STOREKEEPER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER')")
     public ResponseEntity<ApiResponse<GoodsReceiptNote>> create(@RequestBody GoodsReceiptNote grn) {
         return ResponseEntity.ok(ApiResponse.success(grnService.createGrn(grn), "GRN created"));
     }
 
     @PostMapping("/{id}/confirm")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','STOREKEEPER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER')")
     public ResponseEntity<ApiResponse<GoodsReceiptNote>> confirm(@PathVariable Long id) {
         return ResponseEntity.ok(ApiResponse.success(grnService.confirmGrn(id), "GRN confirmed and stock updated"));
     }
 
     @PutMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','STOREKEEPER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER')")
     public ResponseEntity<ApiResponse<GoodsReceiptNote>> updateStatus(@PathVariable Long id, @RequestParam String status) {
         return ResponseEntity.ok(ApiResponse.success(grnService.updateStatus(id, status), "Status updated"));
     }

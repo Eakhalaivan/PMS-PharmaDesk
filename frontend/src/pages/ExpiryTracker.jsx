@@ -1,39 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { CalendarX, RefreshCw, AlertTriangle, ArrowLeftRight, Trash2, ShieldAlert } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import pharmacyService from '../utils/pharmacyService';
+import { useExpiryStore } from '../store/useExpiryStore';
 
 export default function ExpiryTracker() {
-  const [batches, setBatches] = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [returns, setReturns] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const { batches, summary, returns, loading, fetchAll: fetchExpiryData, initiateReturn } = useExpiryStore();
   const [submitting, setSubmitting] = useState(false);
 
   const [returnQty, setReturnQty] = useState('');
   const [selectedBatch, setSelectedBatch] = useState(null);
   const [remarks, setRemarks] = useState('');
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const bRes = await pharmacyService.getExpiryBatches();
-      const sRes = await pharmacyService.getExpirySummary();
-      const rRes = await pharmacyService.getExpiryReturns();
-      
-      setBatches(bRes.data || bRes || []);
-      setSummary(sRes.data || sRes || null);
-      setReturns(rRes.data || rRes || []);
-    } catch (err) {
-      toast.error('Failed to load expiry tracking data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadData();
-  }, []);
+    fetchExpiryData();
+  }, [fetchExpiryData]);
 
   const handleReturn = async (e) => {
     e.preventDefault();
@@ -47,25 +27,17 @@ export default function ExpiryTracker() {
     }
 
     setSubmitting(true);
-    try {
-      const res = await pharmacyService.initiateExpiryReturn({
-        batchId: selectedBatch.id,
-        returnQuantity: parseInt(returnQty),
-        remarks: remarks
-      });
-      if (res.success || res.id) {
-        toast.success('Expiry return recorded successfully');
-        setSelectedBatch(null);
-        setReturnQty('');
-        setRemarks('');
-        loadData();
-      } else {
-        toast.error('Failed to record return');
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Error recording return');
-    } finally {
-      setSubmitting(false);
+    const ok = await initiateReturn({
+      batchId: selectedBatch.id,
+      returnQuantity: parseInt(returnQty),
+      remarks: remarks
+    });
+    setSubmitting(false);
+
+    if (ok) {
+      setSelectedBatch(null);
+      setReturnQty('');
+      setRemarks('');
     }
   };
 
@@ -89,7 +61,7 @@ export default function ExpiryTracker() {
           <h2 className="text-2xl font-bold text-slate-800">Expiry & Batch Tracker</h2>
           <p className="text-sm text-slate-400">Track drug expiries, near-expiry alerts, and supplier return workflows.</p>
         </div>
-        <button onClick={loadData} disabled={loading} className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+        <button onClick={fetchExpiryData} disabled={loading} className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
           <RefreshCw className={`w-4 h-4 text-slate-600 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>

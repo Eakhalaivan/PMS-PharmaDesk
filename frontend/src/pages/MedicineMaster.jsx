@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactBarcode from 'react-barcode';
 import { Plus, Search, Eye, Edit3, Pill, Save, CheckCircle, Barcode, AlertTriangle, ShieldAlert } from 'lucide-react';
 import ModuleFilterBar from '../components/ui/ModuleFilterBar';
 import DataTable from '../components/ui/DataTable';
@@ -6,7 +7,7 @@ import Pagination from '../components/ui/Pagination';
 import AppModal from '../components/ui/AppModal';
 import Badge from '../components/ui/Badge';
 import { toast } from 'react-hot-toast';
-import pharmacyService from '../utils/pharmacyService';
+import { useMedicineStore } from '../store/useMedicineStore';
 import { cn } from '../utils/cn';
 
 const TABS = ['Basic Info', 'Pricing & Tax', 'Stock Settings', 'Clinical Details', 'Storage & Handling', 'Barcode'];
@@ -17,21 +18,20 @@ const STORAGES = ['Room Temperature (15–25°C)', 'Refrigerated (2–8°C)', 'F
 const CATEGORIES = ['Tablet', 'Capsule', 'Syrup', 'Injection', 'Ointment', 'Drops', 'Vial', 'Cream', 'Inhaler'];
 
 export default function MedicineMaster() {
-  const [medicines, setMedicines] = useState([]);
-  const [loading, setLoading] = useState(true);
-  
+  // Store — data & filters
+  const {
+    medicines, loading, error, totalElements, totalPages, page,
+    searchTerm, drugClassFilter, scheduleFilter,
+    fetchMedicines, setSearch, setPage, setDrugClassFilter, setScheduleFilter,
+    createMedicine, updateMedicine, setPageSize: setStorePageSize
+  } = useMedicineStore();
+
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [activeModalTab, setActiveModalTab] = useState('Basic Info');
   const [selectedMedicineId, setSelectedMedicineId] = useState(null);
 
-  // Table & Filters
-  const [searchTerm, setSearchTerm] = useState('');
-  const [drugClassFilter, setDrugClassFilter] = useState('ALL');
-  const [scheduleFilter, setScheduleFilter] = useState('ALL');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
   const [visibleColumns, setVisibleColumns] = useState({
     code: true, hsn: false, mrp: true, stock: true, generic: true, manufacturer: true, barcode: false
   });
@@ -46,20 +46,6 @@ export default function MedicineMaster() {
   useEffect(() => {
     fetchMedicines();
   }, []);
-
-  const fetchMedicines = async () => {
-    setLoading(true);
-    try {
-      const response = await pharmacyService.getMedicines();
-      if (response.success || response.data) {
-        setMedicines(response.data || response);
-      }
-    } catch (error) {
-      toast.error('Failed to fetch medicines');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const openModal = (medicine = null) => {
     if (medicine) {
@@ -106,38 +92,18 @@ export default function MedicineMaster() {
       return;
     }
     
-    try {
-      if (isEditMode) {
-        await pharmacyService.updateMedicine(selectedMedicineId, formData);
-        toast.success('Medicine updated successfully!');
-      } else {
-        await pharmacyService.createMedicine(formData);
-        toast.success('Medicine registered successfully!');
-      }
-      setIsModalOpen(false);
-      fetchMedicines();
-    } catch (error) {
-      toast.error('Operation failed. Check details.');
-    }
+    const ok = isEditMode
+      ? await updateMedicine(selectedMedicineId, formData)
+      : await createMedicine(formData);
+    if (ok) setIsModalOpen(false);
   };
 
   // Derived styling for preview
   const isHighAlert = ['Schedule H1', 'Schedule X', 'Narcotic'].includes(formData.schedule);
   const isColdChain = ['Refrigerated (2–8°C)', 'Frozen (below 0°C)'].includes(formData.storageConditions);
 
-  // Filters
-  const filteredMedicines = medicines.filter(m => {
-    const s = searchTerm.toLowerCase();
-    const matchesSearch = !searchTerm || (m.name?.toLowerCase().includes(s) || m.genericName?.toLowerCase().includes(s));
-    const matchesClass = drugClassFilter === 'ALL' || m.drugClass === drugClassFilter;
-    const matchesSchedule = scheduleFilter === 'ALL' || m.schedule === scheduleFilter;
-    return matchesSearch && matchesClass && matchesSchedule;
-  });
-
-  const paginatedMedicines = pageSize === 'All' ? filteredMedicines : filteredMedicines.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-
   const columns = [
-    { header: 'S.No', render: (r, i) => <span className="text-slate-500 font-medium">{(currentPage - 1) * (pageSize === 'All' ? 0 : pageSize) + i + 1}</span> },
+    { header: 'S.No', render: (r, i) => <span className="text-slate-500 font-medium">{i + 1}</span> },
     { header: 'Code', accessor: 'medicineCode', render: (r) => <span className="font-mono text-xs">{r.medicineCode || '-'}</span> },
     { header: 'Medicine Name', render: (r) => <span className="font-medium text-slate-900 whitespace-nowrap">{r.name}</span> },
     { header: 'Generic Name', render: (r) => <span className="text-slate-600 whitespace-nowrap">{r.genericName}</span> },
@@ -174,7 +140,7 @@ export default function MedicineMaster() {
 
       <div className="bg-white p-4 rounded-lg border border-slate-200 flex flex-wrap gap-4 items-center shadow-sm">
         <div className="flex-1 min-w-[250px]">
-          <ModuleFilterBar onSearch={setSearchTerm} searchValue={searchTerm} hideDateRange={true} />
+          <ModuleFilterBar onSearch={setSearch} searchValue={searchTerm} hideDateRange={true} />
         </div>
         <select value={drugClassFilter} onChange={(e) => setDrugClassFilter(e.target.value)} className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-md text-sm outline-none">
           <option value="ALL">All Drug Classes</option>
@@ -186,7 +152,6 @@ export default function MedicineMaster() {
         </select>
         
 
-
         <button onClick={() => openModal()} className="px-5 py-2 bg-[#1a3c6e] text-white rounded-md text-sm font-medium hover:bg-[#122b50] flex items-center gap-2">
           <Plus className="w-4 h-4" /> Add Medicine
         </button>
@@ -197,9 +162,9 @@ export default function MedicineMaster() {
           <div className="p-10 text-center text-slate-500">Loading registry...</div>
         ) : (
           <>
-            <DataTable columns={columns} data={paginatedMedicines} striped />
-            {filteredMedicines.length > 0 && (
-              <Pagination totalRecords={filteredMedicines.length} currentPage={currentPage} pageSize={pageSize} onPageChange={setCurrentPage} onPageSizeChange={setPageSize} />
+            <DataTable columns={columns} data={medicines} striped />
+            {totalElements > 0 && (
+              <Pagination totalRecords={totalElements} currentPage={page + 1} pageSize={20} onPageChange={(p) => setPage(p - 1)} onPageSizeChange={() => {}} />
             )}
           </>
         )}
@@ -367,15 +332,36 @@ export default function MedicineMaster() {
               )}
 
               {activeModalTab === 'Barcode' && (
-                <div className="space-y-5">
+                <div className="space-y-6">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">Item Barcode (EAN-13 / Custom)</label>
+                    <label className="text-sm font-medium text-slate-700">Barcode / UPC Number</label>
                     <div className="flex gap-2">
                       <input type="text" placeholder="Scan or type barcode" value={formData.barcode} onChange={e => setFormData({...formData, barcode: e.target.value})} className="flex-1 px-3 py-2 border border-slate-200 rounded-md outline-none font-mono" />
-                      <button className="px-4 py-2 bg-blue-50 text-blue-600 border border-blue-200 rounded-md text-sm font-medium flex items-center gap-2 hover:bg-blue-100">
-                        <Barcode className="w-4 h-4" /> Scan
+                      <button 
+                        onClick={(e) => { 
+                          e.preventDefault(); 
+                          if (!formData.barcode) { 
+                            setFormData({...formData, barcode: Math.floor(100000000000 + Math.random() * 900000000000).toString() }); 
+                          } 
+                        }} 
+                        className="px-4 py-2 bg-blue-50 text-blue-600 border border-blue-200 rounded-md text-sm font-medium flex items-center gap-2 hover:bg-blue-100"
+                      >
+                        Simulate Scan
                       </button>
                     </div>
+                  </div>
+                  
+                  <div className="flex flex-col items-center justify-center p-8 border border-dashed border-slate-200 rounded-lg bg-slate-50 mt-6">
+                      <span className="text-xs font-medium text-slate-400 uppercase tracking-widest mb-4">Live Scannable Barcode</span>
+                      {formData.barcode ? (
+                        <div className="bg-white p-4 rounded shadow-sm">
+                          <ReactBarcode value={formData.barcode} height={60} width={2} fontSize={14} background="#ffffff" />
+                        </div>
+                      ) : (
+                        <div className="h-[100px] flex items-center justify-center text-slate-400 text-sm">
+                          Enter or scan a barcode to preview
+                        </div>
+                      )}
                   </div>
                 </div>
               )}
@@ -425,9 +411,8 @@ export default function MedicineMaster() {
                 <span className="text-sm font-medium text-slate-900">{formData.packSize || '-'}</span>
               </div>
               {formData.barcode && (
-                <div className="pt-2 flex flex-col items-center">
-                  <Barcode className="w-16 h-8 text-slate-800" />
-                  <span className="text-xs font-mono mt-1 text-slate-500">{formData.barcode}</span>
+                <div className="pt-4 flex flex-col items-center border-t border-slate-100">
+                  <ReactBarcode value={formData.barcode} height={40} width={1.5} fontSize={12} displayValue={true} />
                 </div>
               )}
             </div>

@@ -9,20 +9,27 @@ import Badge from '../components/ui/Badge';
 import { toast } from 'react-hot-toast';
 import pharmacyService from '../utils/pharmacyService';
 import PharmacyInvoice from '../components/pharmacy/PharmacyInvoice';
+import { useSalesStore } from '../store/useSalesStore';
 
 export default function DirectPharmacySales() {
+  const {
+    directSalesList: salesList,
+    directSalesLoading: loading,
+    directSalesSearchTerm: searchTerm,
+    directSalesDateRange: dateRange,
+    setDirectSalesSearch: setSearchTerm,
+    setDirectSalesDateRange: setDateRange,
+    fetchDirectSales: fetchSales
+  } = useSalesStore();
+
   const location = useLocation();
-  const [salesList, setSalesList] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [billToDelete, setBillToDelete] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   
-  // Search and Filter State
-  const [searchTerm, setSearchTerm] = useState('');
-  const [dateRange, setDateRange] = useState({ from: null, to: null });
+
 
   // OTC Sale Form State
   const [patientName, setPatientName] = useState('Walk-in');
@@ -40,24 +47,6 @@ export default function DirectPharmacySales() {
   useEffect(() => {
     fetchSales();
   }, [location.key]);
-
-  const fetchSales = async () => {
-    setLoading(true);
-    try {
-      const response = await pharmacyService.getSales();
-      if (response && response.success) {
-        // Extract the array from Spring Data's Page object if present
-        const salesData = response.data?.content || response.data || [];
-        const otcSales = salesData.filter(sale => sale.billType === 'OTC');
-        setSalesList(otcSales);
-      }
-    } catch (error) {
-      console.error('Fetch Sales Error:', error);
-      toast.error('Failed to load sales data');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleStockSearch = async (val, idx) => {
     if (val.length < 2) {
@@ -268,18 +257,7 @@ export default function DirectPharmacySales() {
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <DataTable 
           columns={columns} 
-          data={salesList.filter(bill => {
-            const searchLower = searchTerm.toLowerCase();
-            const matchesSearch = !searchTerm || 
-              bill.billNumber?.toLowerCase().includes(searchLower) ||
-              bill.patientName?.toLowerCase().includes(searchLower);
-            
-            const billDate = new Date(bill.billingDate);
-            const matchesFrom = !dateRange.from || billDate >= dateRange.from;
-            const matchesTo = !dateRange.to || billDate <= dateRange.to;
-            
-            return matchesSearch && matchesFrom && matchesTo;
-          })} 
+          data={salesList} 
           hover 
           striped 
         />

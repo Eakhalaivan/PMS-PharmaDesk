@@ -1,39 +1,22 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState, useEffect } from 'react';
 import { Search, ChevronDown, ChevronRight, AlertTriangle, ShieldAlert, Package, CheckCircle, Printer, Download, Plus, RotateCcw, Box } from 'lucide-react';
 import ModuleFilterBar from '../components/ui/ModuleFilterBar';
 import Pagination from '../components/ui/Pagination';
 import Badge from '../components/ui/Badge';
 import AppModal from '../components/ui/AppModal';
 import { toast } from 'react-hot-toast';
-import pharmacyService from '../utils/pharmacyService';
 import { cn } from '../utils/cn';
+import { useStockStore } from '../store/useStockStore';
 
 export default function MedicineStock() {
-  const { data: stocksData, isLoading: loading, refetch: fetchData } = useQuery({
-    queryKey: ['medicine-stocks'],
-    queryFn: async () => {
-      const [stockRes, medRes, valRes, suppRes] = await Promise.all([
-        pharmacyService.getAllStocks(),
-        pharmacyService.getMedicines(),
-        pharmacyService.api.get('/pharmacy/stocks/valuation').catch(() => null),
-        pharmacyService.getSuppliers().catch(() => ({ data: [] }))
-      ]);
-      return {
-        stocks: stockRes?.success ? stockRes.data : (Array.isArray(stockRes?.data) ? stockRes.data : []),
-        medicines: medRes?.success ? medRes.data : (Array.isArray(medRes?.data) ? medRes.data : []),
-        valuation: valRes?.data?.success ? valRes.data.data : null,
-        suppliers: suppRes?.success ? suppRes.data : (Array.isArray(suppRes?.data) ? suppRes.data : [])
-      };
-    },
-    placeholderData: (prev) => prev,
-    staleTime: 30_000,
-  });
+  const { 
+    stocks, medicines, valuation, suppliers, stockLoading: loading, 
+    fetchStocks, adjustStock, addStock, updateReorderConfig, runAutoPO 
+  } = useStockStore();
 
-  const stocks = stocksData?.stocks ?? [];
-  const medicines = stocksData?.medicines ?? [];
-  const valuation = stocksData?.valuation ?? null;
-  const suppliers = stocksData?.suppliers ?? [];
+  useEffect(() => {
+    fetchStocks();
+  }, [fetchStocks]);
 
   // Table state
   const [searchTerm, setSearchTerm] = useState('');
@@ -65,18 +48,9 @@ export default function MedicineStock() {
 
   const handleAdjustSubmit = async () => {
     if (adjustForm.quantity === 0) return toast.error('Adjust quantity cannot be 0');
-    try {
-      await pharmacyService.api.post('/pharmacy/stocks/adjust', {
-        medicineStock: { id: selectedBatch.id },
-        adjustedQuantity: adjustForm.quantity,
-        reason: adjustForm.reason,
-        remarks: adjustForm.remarks
-      });
-      toast.success('Stock adjusted successfully');
+    const success = await adjustStock(selectedBatch.id, adjustForm.quantity, adjustForm.reason, adjustForm.remarks);
+    if (success) {
       setIsAdjustModalOpen(false);
-      fetchData();
-    } catch (error) {
-      toast.error('Adjustment failed');
     }
   };
 
@@ -86,58 +60,39 @@ export default function MedicineStock() {
     if (!addStockForm.expiryDate) return toast.error('Expiry date is required');
     if (!addStockForm.quantityReceived || Number(addStockForm.quantityReceived) <= 0) return toast.error('Quantity received must be greater than 0');
 
-    try {
-      const payload = {
-        medicine: { id: addStockForm.medicineId },
-        batchNumber: addStockForm.batchNumber,
-        grnReference: addStockForm.grnReference,
-        manufacturingDate: addStockForm.manufacturingDate || null,
-        expiryDate: addStockForm.expiryDate,
-        quantityReceived: Number(addStockForm.quantityReceived),
-        quantityAvailable: Number(addStockForm.quantityReceived), // initialize available with received
-        purchaseRate: Number(addStockForm.purchaseRate) || 0,
-        sellingRate: Number(addStockForm.sellingRate) || 0,
-      };
-      if (addStockForm.supplierId) {
-        payload.supplier = { id: addStockForm.supplierId };
-      }
+    const payload = {
+      medicine: { id: addStockForm.medicineId },
+      batchNumber: addStockForm.batchNumber,
+      grnReference: addStockForm.grnReference,
+      manufacturingDate: addStockForm.manufacturingDate || null,
+      expiryDate: addStockForm.expiryDate,
+      quantityReceived: Number(addStockForm.quantityReceived),
+      quantityAvailable: Number(addStockForm.quantityReceived), // initialize available with received
+      purchaseRate: Number(addStockForm.purchaseRate) || 0,
+      sellingRate: Number(addStockForm.sellingRate) || 0,
+    };
+    if (addStockForm.supplierId) {
+      payload.supplier = { id: addStockForm.supplierId };
+    }
 
-      await pharmacyService.api.post('/pharmacy/stocks', payload);
-      toast.success('Stock inward registered successfully');
+    const success = await addStock(payload);
+    if (success) {
       setIsAddStockModalOpen(false);
       setAddStockForm({
         medicineId: '', batchNumber: '', grnReference: '', manufacturingDate: '', expiryDate: '',
         quantityReceived: '', supplierId: '', purchaseRate: '', mrp: '', sellingRate: ''
       });
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to add stock');
     }
   };
 
   const handleConfigSubmit = async () => {
-    try {
-      const payload = {
-        ...selectedConfigGroup.medicine,
-        reorderLevel: Number(configForm.reorderLevel),
-        reorderQuantity: Number(configForm.reorderQuantity)
-      };
-      await pharmacyService.api.put(`/pharmacy/medicines/${payload.id}`, payload);
-      toast.success('Reorder settings updated successfully');
-      setIsConfigModalOpen(false);
-      fetchData();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to update reorder settings');
-    }
-  };
-
-  const runAutoPO = async () => {
-    try {
-      const res = await pharmacyService.api.post('/pharmacy/purchase-orders/auto-generate');
-      toast.success(res.data.message || 'Auto POs generated');
-    } catch (e) {
-      toast.error('Failed to generate POs');
-    }
+    const payload = {
+      ...selectedConfigGroup.medicine,
+      reorderLevel: Number(configForm.reorderLevel),
+      reorderQuantity: Number(configForm.reorderQuantity)
+    };
+    const success = await updateReorderConfig(payload.id, payload);
+    if (success) setIsConfigModalOpen(false);
   };
 
   // Group stocks by medicine

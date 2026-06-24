@@ -8,7 +8,7 @@ import {
 import AppModal from '../components/ui/AppModal';
 import Badge from '../components/ui/Badge';
 import { toast } from 'react-hot-toast';
-import pharmacyService from '../utils/pharmacyService';
+import { useSupplierStore } from '../store/useSupplierStore';
 import GRNEntry from './GRNEntry';
 import InvoiceMatching from './InvoiceMatching';
 import SupplierReturns from './SupplierReturns';
@@ -450,10 +450,12 @@ function SupplierProfile({ supplier, onClose, onEdit, onCreatePO }) {
 // MAIN SUPPLIERS PAGE
 // ══════════════════════════════════════════════════════════════
 export default function Suppliers() {
+  const {
+    suppliers, loading, searchTerm, filteredSuppliers,
+    setSearch, fetchSuppliers, createSupplier, updateSupplier, deleteSupplier
+  } = useSupplierStore();
+
   const [view, setView] = useState('list'); // list | grn | invoice | returns
-  const [suppliers, setSuppliers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -461,51 +463,28 @@ export default function Suppliers() {
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [profileSupplier, setProfileSupplier] = useState(null);
 
-  const fetchSuppliers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await pharmacyService.getSuppliers();
-      if (res.success) setSuppliers(res.data);
-    } catch { toast.error('Failed to fetch suppliers'); }
-    finally { setLoading(false); }
-  }, []);
-
   useEffect(() => { fetchSuppliers(); }, [fetchSuppliers]);
 
   const handleSave = async (form) => {
     if (!form.name?.trim()) { toast.error('Supplier name is required'); return; }
-    try {
-      if (isEditMode) {
-        const res = await pharmacyService.updateSupplier(selectedSupplier.id, form);
-        if (res.success) { toast.success('Supplier updated!'); setIsModalOpen(false); fetchSuppliers(); }
-      } else {
-        const res = await pharmacyService.createSupplier(form);
-        if (res.success) { toast.success('Supplier added!'); setIsModalOpen(false); fetchSuppliers(); }
-      }
-    } catch { toast.error(isEditMode ? 'Failed to update' : 'Failed to create'); }
+    const ok = isEditMode
+      ? await updateSupplier(selectedSupplier.id, form)
+      : await createSupplier(form);
+    if (ok) setIsModalOpen(false);
   };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this supplier?')) return;
-    try {
-      const res = await pharmacyService.deleteSupplier(id);
-      if (res.success) { toast.success('Deleted'); fetchSuppliers(); }
-    } catch { toast.error('Failed to delete'); }
+    await deleteSupplier(id);
   };
 
   const openAdd = () => { setIsEditMode(false); setSelectedSupplier(null); setIsModalOpen(true); };
   const openEdit = (s) => { setIsEditMode(true); setSelectedSupplier(s); setIsModalOpen(true); setProfileSupplier(null); };
 
-  const filtered = suppliers.filter(s => {
-    const q = searchTerm.toLowerCase();
-    const matchSearch = !searchTerm ||
-      s.name?.toLowerCase().includes(q) ||
-      s.gstin?.toLowerCase().includes(q) ||
-      s.drugLicenseNumber?.toLowerCase().includes(q) ||
-      s.supplierCode?.toLowerCase().includes(q);
+  const filtered = filteredSuppliers().filter(s => {
     const matchType = !filterType || s.supplierType === filterType;
     const matchStatus = !filterStatus || s.status === filterStatus;
-    return matchSearch && matchType && matchStatus;
+    return matchType && matchStatus;
   });
 
   // Sub-view routing
@@ -548,7 +527,7 @@ export default function Suppliers() {
       <div className="flex flex-wrap gap-3 items-center bg-white rounded-xl border border-slate-100 p-3">
         <div className="flex-1 min-w-[200px] relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
-          <input value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+          <input value={searchTerm} onChange={e => setSearch(e.target.value)}
             placeholder="Search by name, GSTIN, drug license…"
             className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 outline-none" />
         </div>
@@ -567,7 +546,7 @@ export default function Suppliers() {
           <option value="BLACKLISTED">Blacklisted</option>
         </select>
         {(searchTerm || filterType || filterStatus) && (
-          <button onClick={() => { setSearchTerm(''); setFilterType(''); setFilterStatus(''); }}
+          <button onClick={() => { setSearch(''); setFilterType(''); setFilterStatus(''); }}
             className="flex items-center gap-1 px-3 py-2 text-xs font-bold text-red-500 border border-red-100 rounded-lg hover:bg-red-50 transition-colors">
             <X className="w-3 h-3" /> Clear
           </button>

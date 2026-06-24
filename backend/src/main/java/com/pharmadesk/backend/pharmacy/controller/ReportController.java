@@ -24,7 +24,7 @@ public class ReportController {
     // ─── SALES ────────────────────────────────────────────────────────────────
 
     @GetMapping("/sales")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR','PHARMACIST')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR','ROLE_PHARMACIST')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSalesReport(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
@@ -32,7 +32,7 @@ public class ReportController {
     }
 
     @GetMapping("/sales/summary")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR','PHARMACIST')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR','ROLE_PHARMACIST')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getDailySalesSummary(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
@@ -40,7 +40,7 @@ public class ReportController {
     }
 
     @GetMapping("/sales/itemised")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR','PHARMACIST')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR','ROLE_PHARMACIST')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getItemisedRegister(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
@@ -48,7 +48,7 @@ public class ReportController {
     }
 
     @GetMapping("/sales/medicine-wise")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR','PHARMACIST')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR','ROLE_PHARMACIST')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMedicineWiseSales(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
@@ -56,7 +56,7 @@ public class ReportController {
     }
 
     @GetMapping("/sales/credit")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR','PHARMACIST','ACCOUNTS')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR','ROLE_PHARMACIST','ROLE_ACCOUNTS')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getCreditSales(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
@@ -64,7 +64,7 @@ public class ReportController {
     }
 
     @GetMapping("/sales/cancelled")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getCancelledBills(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
@@ -74,20 +74,20 @@ public class ReportController {
     // ─── STOCK ─────────────────────────────────────────────────────────────────
 
     @GetMapping("/stock")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR','STOREKEEPER','PHARMACIST')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR','ROLE_STOREKEEPER','ROLE_PHARMACIST')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getStockReport() {
         return ResponseEntity.ok(ApiResponse.success(reportService.getStockReport(), "Stock report"));
     }
 
     @GetMapping("/stock/expiry")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR','STOREKEEPER','PHARMACIST')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR','ROLE_STOREKEEPER','ROLE_PHARMACIST')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getExpiryReport(
             @RequestParam(defaultValue = "60") int days) {
         return ResponseEntity.ok(ApiResponse.success(reportService.getExpiryReport(days), "Expiry report"));
     }
 
     @GetMapping("/stock/slow-moving")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR','STOREKEEPER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR','ROLE_STOREKEEPER')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSlowMoving(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
@@ -98,7 +98,7 @@ public class ReportController {
     // ─── TAX / GST ──────────────────────────────────────────────────────────────
 
     @GetMapping("/tax")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR','ACCOUNTS')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR','ROLE_ACCOUNTS')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getTaxReport(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
@@ -106,7 +106,7 @@ public class ReportController {
     }
 
     @GetMapping("/gst/sales")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','ACCOUNTS')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_ACCOUNTS')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getGstSalesRegister(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
@@ -116,7 +116,7 @@ public class ReportController {
     // ─── PURCHASE ──────────────────────────────────────────────────────────────
 
     @GetMapping("/purchase/register")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR','STOREKEEPER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR','ROLE_STOREKEEPER')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getPurchaseRegister(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
@@ -124,13 +124,13 @@ public class ReportController {
     }
 
     @GetMapping("/purchase/payables")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','ACCOUNTS')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_ACCOUNTS')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getOutstandingPayables() {
         return ResponseEntity.ok(ApiResponse.success(reportService.getOutstandingPayables(), "Outstanding payables"));
     }
 
     @GetMapping("/supplier/performance")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR')")
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSupplierPerformance() {
         return ResponseEntity.ok(ApiResponse.success(reportService.getSupplierPerformanceSummary(), "Supplier performance"));
     }

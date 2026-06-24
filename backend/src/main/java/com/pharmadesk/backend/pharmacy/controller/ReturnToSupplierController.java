@@ -36,13 +36,13 @@ public class ReturnToSupplierController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','STOREKEEPER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER')")
     public ResponseEntity<ApiResponse<ReturnToSupplier>> create(@RequestBody ReturnToSupplier returnToSupplier) {
         return ResponseEntity.ok(ApiResponse.success(returnService.createReturn(returnToSupplier), "Return initiated and stock deducted"));
     }
 
     @PutMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','STOREKEEPER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER')")
     public ResponseEntity<ApiResponse<ReturnToSupplier>> updateStatus(
             @PathVariable Long id,
             @RequestParam String status,

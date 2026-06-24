@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Thermometer, RefreshCw, AlertTriangle, CheckCircle, Plus, Sparkles, Save } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import pharmacyService from '../utils/pharmacyService';
+import { useTemperatureStore } from '../store/useTemperatureStore';
 
 export default function TemperatureLogs() {
-  const [units, setUnits] = useState([]);
-  const [breaches, setBreaches] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const { units, breaches, loading, fetchAll, createUnit, recordTemperature, resolveBreach } = useTemperatureStore();
   const [submitting, setSubmitting] = useState(false);
 
   // New storage unit modal state
@@ -22,24 +20,9 @@ export default function TemperatureLogs() {
   const [correctiveActionLogId, setCorrectiveActionLogId] = useState(null);
   const [correctiveActionText, setCorrectiveActionText] = useState('');
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const uRes = await pharmacyService.getStorageUnits();
-      const bRes = await pharmacyService.getTemperatureBreaches();
-      
-      setUnits(uRes.data || uRes || []);
-      setBreaches(bRes.data || bRes || []);
-    } catch {
-      toast.error('Failed to load temperature logging data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadData();
-  }, []);
+    fetchAll();
+  }, [fetchAll]);
 
   const handleCreateUnit = async (e) => {
     e.preventDefault();
@@ -48,24 +31,18 @@ export default function TemperatureLogs() {
       return;
     }
     setSubmitting(true);
-    try {
-      const res = await pharmacyService.createStorageUnit({
-        unitName: newUnit.name,
-        unitType: 'refrigerator',
-        location: newUnit.location,
-        minThreshold: parseFloat(newUnit.minTemperature),
-        maxThreshold: parseFloat(newUnit.maxTemperature)
-      });
-      if (res.success || res.id) {
-        toast.success('Storage unit added successfully');
-        setShowUnitForm(false);
-        setNewUnit({ name: '', minTemperature: '', maxTemperature: '', location: '' });
-        loadData();
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Error adding storage unit');
-    } finally {
-      setSubmitting(false);
+    const ok = await createUnit({
+      unitName: newUnit.name,
+      unitType: 'refrigerator',
+      location: newUnit.location,
+      minThreshold: parseFloat(newUnit.minTemperature),
+      maxThreshold: parseFloat(newUnit.maxTemperature)
+    });
+    setSubmitting(false);
+
+    if (ok) {
+      setShowUnitForm(false);
+      setNewUnit({ name: '', minTemperature: '', maxTemperature: '', location: '' });
     }
   };
 
@@ -76,32 +53,21 @@ export default function TemperatureLogs() {
       return;
     }
     setSubmitting(true);
-    try {
-      const selectedUnit = units.find(u => u.unitId === selectedUnitId);
-      const res = await pharmacyService.recordTemperature({
-        storageUnit: { unitId: selectedUnitId },
-        unitName: selectedUnit.unitName,
-        unitType: selectedUnit.unitType,
-        recordedTemperature: parseFloat(tempReading),
-        minThreshold: selectedUnit.minThreshold,
-        maxThreshold: selectedUnit.maxThreshold,
-        recordedBy: 1
-      });
-      if (res.success || res.id) {
-        const isBreached = res.data?.isBreach || res.isBreach;
-        if (isBreached) {
-          toast.error('Warning: Temperature reading is outside safe storage bounds!');
-        } else {
-          toast.success('Temperature logged successfully');
-        }
-        setTempReading('');
-        setSelectedUnitId('');
-        loadData();
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Error recording reading');
-    } finally {
-      setSubmitting(false);
+    const selectedUnit = units.find(u => u.unitId === selectedUnitId);
+    const ok = await recordTemperature({
+      storageUnit: { unitId: selectedUnitId },
+      unitName: selectedUnit.unitName,
+      unitType: selectedUnit.unitType,
+      recordedTemperature: parseFloat(tempReading),
+      minThreshold: selectedUnit.minThreshold,
+      maxThreshold: selectedUnit.maxThreshold,
+      recordedBy: 1
+    });
+    setSubmitting(false);
+
+    if (ok) {
+      setTempReading('');
+      setSelectedUnitId('');
     }
   };
 
@@ -112,18 +78,12 @@ export default function TemperatureLogs() {
       return;
     }
     setSubmitting(true);
-    try {
-      const res = await pharmacyService.recordCorrectiveAction(correctiveActionLogId, correctiveActionText, 1); // Mock active user ID as 1
-      if (res.success || res.id) {
-        toast.success('Corrective action documented successfully');
-        setCorrectiveActionLogId(null);
-        setCorrectiveActionText('');
-        loadData();
-      }
-    } catch (err) {
-      toast.error('Error recording corrective action');
-    } finally {
-      setSubmitting(false);
+    const ok = await resolveBreach(correctiveActionLogId, correctiveActionText);
+    setSubmitting(false);
+
+    if (ok) {
+      setCorrectiveActionLogId(null);
+      setCorrectiveActionText('');
     }
   };
 
@@ -139,7 +99,7 @@ export default function TemperatureLogs() {
           <button onClick={() => setShowUnitForm(true)} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-sm">
             <Plus className="w-3.5 h-3.5" /> Storage Unit
           </button>
-          <button onClick={loadData} disabled={loading} className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+          <button onClick={fetchAll} disabled={loading} className="p-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
             <RefreshCw className={`w-4 h-4 text-slate-600 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -233,7 +193,7 @@ export default function TemperatureLogs() {
             </div>
             <div className="divide-y divide-slate-50 max-h-[300px] overflow-auto">
               {breaches.map(b => (
-                <div key={b.id} className="p-4 text-xs space-y-2 bg-red-50/10">
+                <div key={b.logId || Math.random()} className="p-4 text-xs space-y-2 bg-red-50/10">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-800">{b.storageUnitName || `Unit #${b.storageUnitId}`}</span>
                     <span className="font-mono text-slate-400">{b.loggedAt}</span>

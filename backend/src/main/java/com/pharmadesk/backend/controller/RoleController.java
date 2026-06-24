@@ -19,13 +19,13 @@ public class RoleController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_SYSTEM_ADMIN')")
     public ResponseEntity<List<Role>> getAllRoles() {
         return ResponseEntity.ok(roleRepository.findAll());
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_SYSTEM_ADMIN')")
     public ResponseEntity<Role> createRole(@RequestBody Role role) {
         if (role.getIsSystemDefault() == null) {
             role.setIsSystemDefault(false);
@@ -34,7 +34,7 @@ public class RoleController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_SYSTEM_ADMIN')")
     public ResponseEntity<Role> updateRole(@PathVariable Long id, @RequestBody Role updatedRole) {
         return roleRepository.findById(id).map(role -> {
             role.setName(updatedRole.getName());
@@ -45,7 +45,7 @@ public class RoleController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('SYSTEM_ADMIN')")
+    @PreAuthorize("hasAuthority('ROLE_SYSTEM_ADMIN')")
     public ResponseEntity<Void> deleteRole(@PathVariable Long id) {
         return roleRepository.findById(id).map(role -> {
             if (Boolean.TRUE.equals(role.getIsSystemDefault())) {

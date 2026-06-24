@@ -18,8 +18,12 @@ api.interceptors.request.use(
     // VITE_API_URL already contains '/api', so we do not need to prepend it again.
 
     const token = localStorage.getItem('token');
+    const activeRole = localStorage.getItem('activeRole');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
+    }
+    if (activeRole) {
+      config.headers['X-Active-Role'] = activeRole;
     }
     return config;
   },

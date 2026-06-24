@@ -1,7 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { ROLES, DASHBOARD_ROUTES } from '../../config/roles.config';
+import { ROLES, DASHBOARD_ROUTES, getBaseRoleForUI } from '../../config/roles.config';
 
 export default function RoleGuard({ allowedRoles, children, fallback }) {
   const { user, activeRole, roles, loading } = useAuth();
@@ -12,7 +12,7 @@ export default function RoleGuard({ allowedRoles, children, fallback }) {
 
   // Check if ANY of the user's roles is in the allowedRoles list
   const userRoles = roles || (activeRole ? [activeRole] : []);
-  const hasAccess = userRoles.some(r => allowedRoles.includes(r));
+  const hasAccess = userRoles.some(r => allowedRoles.includes(r) || allowedRoles.includes(getBaseRoleForUI(r)));
 
   // SYSTEM_ADMIN always has full access
   if (userRoles.includes(ROLES.SYSTEM_ADMIN)) {
@@ -26,7 +26,7 @@ export default function RoleGuard({ allowedRoles, children, fallback }) {
   // If user is authenticated but not authorized for this specific route,
   // redirect them to their active role's dashboard or a fallback
   if (user) {
-    const fallbackRoute = fallback || DASHBOARD_ROUTES[activeRole] || '/dashboard/admin';
+    const fallbackRoute = fallback || DASHBOARD_ROUTES[getBaseRoleForUI(activeRole)] || '/dashboard/pharmacy';
     console.warn('RoleGuard: Access denied.', 'User roles:', userRoles, 'Required:', allowedRoles);
     
     // Guard against infinite redirect if already at fallback

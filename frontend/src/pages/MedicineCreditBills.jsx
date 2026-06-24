@@ -8,11 +8,11 @@ import AppModal from '../components/ui/AppModal';
 import Badge from '../components/ui/Badge';
 import { toast } from 'react-hot-toast';
 import pharmacyService from '../utils/pharmacyService';
+import { useBillingStore } from '../store/useBillingStore';
 
 export default function MedicineCreditBills() {
   const location = useLocation();
-  const [creditBillsList, setCreditBillsList] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { creditBillsList, creditBillsLoading: loading, fetchCreditBills } = useBillingStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBill, setSelectedBill] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -21,24 +21,7 @@ export default function MedicineCreditBills() {
 
   useEffect(() => {
     fetchCreditBills();
-  }, [location.key]);
-
-  const fetchCreditBills = async () => {
-    setLoading(true);
-    try {
-      const response = await pharmacyService.getCreditBills();
-      if (response && response.success) {
-        setCreditBillsList(Array.isArray(response.data) ? response.data : []);
-      } else {
-        setCreditBillsList([]);
-      }
-    } catch (error) {
-      console.error('Credit Bills Error:', error);
-      setCreditBillsList([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [location.key, fetchCreditBills]);
 
   const handleRecordPayment = async () => {
     if (!paymentAmount) {

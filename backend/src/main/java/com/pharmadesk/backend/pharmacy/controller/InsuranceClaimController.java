@@ -31,13 +31,13 @@ public class InsuranceClaimController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','BILLING_STAFF','CASHIER')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_BILLING_STAFF','ROLE_CASHIER')")
     public ResponseEntity<ApiResponse<InsuranceClaim>> create(@RequestBody InsuranceClaim claim) {
         return ResponseEntity.ok(ApiResponse.success(service.createClaim(claim), "Claim draft created successfully"));
     }
 
     @PutMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','ACCOUNTS_MANAGER','SUPERVISOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_ACCOUNTS_MANAGER','ROLE_SUPERVISOR')")
     public ResponseEntity<ApiResponse<InsuranceClaim>> updateStatus(@PathVariable String id, @RequestParam String status) {
         return ResponseEntity.ok(ApiResponse.success(service.updateClaimStatus(id, status), "Claim status updated"));
     }
@@ -48,7 +48,7 @@ public class InsuranceClaimController {
     }
 
     @PostMapping("/providers")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR')")
     public ResponseEntity<ApiResponse<InsuranceProvider>> createProvider(@RequestBody InsuranceProvider provider) {
         return ResponseEntity.ok(ApiResponse.success(service.createProvider(provider), "Insurance provider configured"));
     }

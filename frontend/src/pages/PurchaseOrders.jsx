@@ -6,12 +6,11 @@ import Pagination from '../components/ui/Pagination';
 import AppModal from '../components/ui/AppModal';
 import Badge from '../components/ui/Badge';
 import { toast } from 'react-hot-toast';
-import { usePageData } from '../hooks/usePageData';
-import useDebounce from '../hooks/useDebounce';
 import TableSkeleton from '../components/ui/TableSkeleton';
 import ErrorBanner from '../components/ui/ErrorBanner';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import pharmacyService from '../utils/pharmacyService';
+import { usePurchaseStore } from '../store/usePurchaseStore';
 import { useAuth } from '../context/AuthContext';
 import { ROLES } from '../config/roles.config';
 
@@ -20,16 +19,21 @@ export default function PurchaseOrders() {
   const navigate = useNavigate();
   const { activeRole, user } = useAuth();
   
+  const {
+    poList, poLoading: isLoading, poError: isError, poPage: page,
+    poTotalElements: totalElements, poSearchTerm: searchTerm,
+    poStatusFilter: statusFilter, poDateRange: dateRange,
+    setPoSearch: setSearchTerm, setPoStatusFilter: setStatusFilter,
+    setPoDateRange: setDateRange, setPoPage: goToPage,
+    fetchPurchaseOrders: refetch
+  } = usePurchaseStore();
+
+  useEffect(() => {
+    refetch();
+  }, []);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
-  const debouncedSearch = useDebounce(searchTerm, 500);
-  
-  const [dateRange, setDateRange] = useState({ 
-    from: searchParams.get('from') ? new Date(searchParams.get('from')) : null, 
-    to: searchParams.get('to') ? new Date(searchParams.get('to')) : null 
-  });
-  const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'ALL');
 
   // Form State
   const [supplierId, setSupplierId] = useState('');
@@ -45,28 +49,7 @@ export default function PurchaseOrders() {
   const [searchResults, setSearchResults] = useState([]);
   const [activeSearchIdx, setActiveSearchIdx] = useState(null);
 
-  // Sync back to URL when filters change
-  useEffect(() => {
-    setSearchParams(prev => {
-      if (debouncedSearch) prev.set('search', debouncedSearch); else prev.delete('search');
-      if (dateRange.from) prev.set('from', dateRange.from.toISOString()); else prev.delete('from');
-      if (dateRange.to) prev.set('to', dateRange.to.toISOString()); else prev.delete('to');
-      if (statusFilter !== 'ALL') prev.set('status', statusFilter); else prev.delete('status');
-      prev.set('page', '0'); // reset to page 1 on filter change
-      return prev;
-    }, { replace: true });
-  }, [debouncedSearch, dateRange.from, dateRange.to, statusFilter, setSearchParams]);
-
-  const { items: poList, isLoading, isError, page, totalElements, goToPage, refetch } = usePageData(
-    'purchase-orders',
-    '/pharmacy/purchase-orders',
-    { 
-      searchTerm: debouncedSearch, 
-      fromDate: dateRange.from?.toISOString(), 
-      toDate: dateRange.to?.toISOString(),
-      status: statusFilter === 'ALL' ? undefined : statusFilter
-    }
-  );
+  // Pagination, filtering, search and syncing URL are handled by Zustand
 
   useEffect(() => {
     // Load suppliers for dropdown

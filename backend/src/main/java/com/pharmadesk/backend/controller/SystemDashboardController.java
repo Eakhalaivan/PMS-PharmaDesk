@@ -7,6 +7,7 @@ import com.pharmadesk.backend.pharmacy.enums.PrescriptionStatus;
 import com.pharmadesk.backend.pharmacy.enums.PaymentStatus;
 import com.pharmadesk.backend.pharmacy.enums.ReturnStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -73,6 +74,7 @@ public class SystemDashboardController {
         LocalDateTime to   = LocalDate.now().atTime(23, 59, 59);
         // Fetch bills in range and aggregate by day in Java (TiDB-safe, no recursive CTE needed)
         return billRepository.findByBillingDateBetween(from, to).stream()
+                .filter(b -> b.getBillingDate() != null)
                 .collect(Collectors.groupingBy(b -> b.getBillingDate().toLocalDate()))
                 .entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())

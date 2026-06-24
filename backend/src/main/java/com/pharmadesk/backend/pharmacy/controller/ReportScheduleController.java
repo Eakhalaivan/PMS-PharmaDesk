@@ -37,13 +37,13 @@ public class ReportScheduleController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR')")
     public ResponseEntity<ApiResponse<ReportSchedule>> create(@RequestBody ReportSchedule schedule) {
         return ResponseEntity.ok(ApiResponse.success(repo.save(schedule), "Schedule created"));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR')")
     public ResponseEntity<ApiResponse<ReportSchedule>> update(@PathVariable Long id, @RequestBody ReportSchedule details) {
         return repo.findById(id).map(s -> {
             s.setScheduleName(details.getScheduleName());
@@ -63,7 +63,7 @@ public class ReportScheduleController {
     }
 
     @PatchMapping("/{id}/toggle")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN','SUPERVISOR')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_SUPERVISOR')")
     public ResponseEntity<ApiResponse<ReportSchedule>> toggle(@PathVariable Long id) {
         return repo.findById(id).map(s -> {
             s.setActive(!s.isActive());
@@ -72,7 +72,7 @@ public class ReportScheduleController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SYSTEM_ADMIN')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN')")
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         repo.deleteById(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Schedule deleted"));

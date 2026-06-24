@@ -7,10 +7,10 @@ import AppModal from '../components/ui/AppModal';
 import Badge from '../components/ui/Badge';
 import { toast } from 'react-hot-toast';
 import pharmacyService from '../utils/pharmacyService';
+import { useBillingStore } from '../store/useBillingStore';
 
 export default function PharmacyAdvances() {
-  const [advancesList, setAdvancesList] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { advancesList, advancesLoading: loading, fetchAdvances } = useBillingStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedAdvance, setSelectedAdvance] = useState(null);
@@ -24,24 +24,7 @@ export default function PharmacyAdvances() {
 
   useEffect(() => {
     fetchAdvances();
-  }, []);
-
-  const fetchAdvances = async () => {
-    setLoading(true);
-    try {
-      const response = await pharmacyService.getAllAdvances();
-      if (response && response.success) {
-        setAdvancesList(Array.isArray(response.data) ? response.data : []);
-      } else {
-        setAdvancesList([]);
-      }
-    } catch (error) {
-      console.error('Pharmacy Advances Error:', error);
-      setAdvancesList([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [fetchAdvances]);
 
   const saveAdvance = async () => {
     if (!patientName || !amount) {

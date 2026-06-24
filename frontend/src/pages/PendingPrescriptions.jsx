@@ -8,52 +8,28 @@ import AppModal from '../components/ui/AppModal';
 import Badge from '../components/ui/Badge';
 import pharmacyService from '../utils/pharmacyService';
 import { toast } from 'react-hot-toast';
+import { useSalesStore } from '../store/useSalesStore';
 
 export default function PendingPrescriptions() {
+  const {
+    prescriptions: filteredPrescriptions,
+    prescriptionsLoading: loading,
+    prescriptionsSearchTerm: searchTerm,
+    prescriptionsDateRange: dateRange,
+    setPrescriptionsSearch: setSearchTerm,
+    setPrescriptionsDateRange: setDateRange,
+    fetchPrescriptions
+  } = useSalesStore();
+
   const location = useLocation();
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedPrescription, setSelectedPrescription] = useState(null);
-  const [prescriptions, setPrescriptions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [dateRange, setDateRange] = useState({ from: null, to: null });
-
-  const filteredPrescriptions = prescriptions.filter(row => {
-    const s = searchTerm.toLowerCase();
-    const matchesSearch = !searchTerm || 
-      row.id?.toString().includes(s) || 
-      row.patientName?.toLowerCase().includes(s) || 
-      row.doctorName?.toLowerCase().includes(s);
-
-    const prDate = new Date(row.prescriptionDate);
-    const normalizedPrDate = new Date(prDate.getFullYear(), prDate.getMonth(), prDate.getDate()).getTime();
-    const matchesFrom = !dateRange.from || normalizedPrDate >= new Date(dateRange.from.getFullYear(), dateRange.from.getMonth(), dateRange.from.getDate()).getTime();
-    const matchesTo = !dateRange.to || normalizedPrDate <= new Date(dateRange.to.getFullYear(), dateRange.to.getMonth(), dateRange.to.getDate()).getTime();
-
-    return matchesSearch && matchesFrom && matchesTo;
-  });
 
   useEffect(() => {
     fetchPrescriptions();
   }, [location.key]);
 
-  const fetchPrescriptions = async () => {
-    setLoading(true);
-    try {
-      const response = await pharmacyService.getPendingPrescriptions();
-      if (response && response.success) {
-        setPrescriptions(Array.isArray(response.data) ? response.data : []);
-      } else {
-        setPrescriptions([]);
-      }
-    } catch (error) {
-      console.error('Prescriptions Error:', error);
-      setPrescriptions([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Filtering and API calling moved to useSalesStore
   const columns = [
     { header: 'S.No', render: (_, i) => i + 1 },
     { header: 'ID', accessor: 'id' },

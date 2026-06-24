@@ -140,11 +140,13 @@ public class MedicineController {
         return ResponseEntity.ok(dtos);
     }
 
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER','ROLE_PHARMACY_STAFF','ROLE_SUPERVISOR')")
     @GetMapping("/stocks/search")
     public ResponseEntity<List<MedicineStock>> searchStocks(@RequestParam String name) {
         return ResponseEntity.ok(stockRepository.findByMedicineNameContainingIgnoreCaseWithMedicineAndSupplier(name));
     }
 
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER','ROLE_PHARMACY_STAFF','ROLE_SUPERVISOR')")
     @GetMapping("/stocks/barcode/{barcode}")
     public ResponseEntity<ApiResponse<MedicineStock>> getStockByBarcode(@PathVariable String barcode) {
         return medicineRepository.findByBarcode(barcode)
@@ -155,12 +157,13 @@ public class MedicineController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER','ROLE_PHARMACY_STAFF','ROLE_SUPERVISOR')")
     @GetMapping("/stocks")
     public ResponseEntity<ApiResponse<List<MedicineStock>>> getAllStocks() {
-        return ResponseEntity.ok(ApiResponse.success(stockRepository.findAllWithMedicineAndSupplier(), "Stocks fetched successfully"));
+        return ResponseEntity.ok(ApiResponse.success(stockRepository.findAllActiveWithMedicineAndSupplier(), "Stocks fetched successfully"));
     }
 
-    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_PHARMACY_STAFF')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_PHARMACY_STAFF','ROLE_STOREKEEPER')")
     @PostMapping("/stocks")
     public ResponseEntity<ApiResponse<MedicineStock>> addStock(@Valid @RequestBody MedicineStock stock) {
         // Ensure medicine is linked
@@ -173,7 +176,7 @@ public class MedicineController {
         return ResponseEntity.ok(ApiResponse.success(saved, "Stock updated successfully"));
     }
 
-    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_PHARMACY_STAFF')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_PHARMACY_STAFF','ROLE_STOREKEEPER')")
     @PostMapping("/stocks/adjust")
     public ResponseEntity<ApiResponse<StockAdjustment>> adjustStock(@Valid @RequestBody StockAdjustment adjustment) {
         MedicineStock stock = stockRepository.findById(adjustment.getMedicineStock().getId())
@@ -198,47 +201,22 @@ public class MedicineController {
 
     @GetMapping("/stocks/valuation")
     public ResponseEntity<ApiResponse<java.util.Map<String, java.math.BigDecimal>>> getStockValuation() {
-        List<MedicineStock> stocks = stockRepository.findAll();
-        java.math.BigDecimal totalPurchaseValue = java.math.BigDecimal.ZERO;
-        java.math.BigDecimal totalMrpValue = java.math.BigDecimal.ZERO;
-        java.math.BigDecimal nearExpiryValue = java.math.BigDecimal.ZERO;
-        java.math.BigDecimal expiredValue = java.math.BigDecimal.ZERO;
-
-        java.time.LocalDate today = java.time.LocalDate.now();
-        java.time.LocalDate nearExpiryThreshold = today.plusDays(30);
-
-        for (MedicineStock s : stocks) {
-            int qty = s.getQuantityAvailable() != null ? s.getQuantityAvailable() : 0;
-            if (qty > 0) {
-                java.math.BigDecimal pRate = s.getPurchaseRate() != null ? s.getPurchaseRate() : java.math.BigDecimal.ZERO;
-                java.math.BigDecimal mRate = s.getSellingRate() != null ? s.getSellingRate() : java.math.BigDecimal.ZERO;
-                
-                java.math.BigDecimal pVal = pRate.multiply(java.math.BigDecimal.valueOf(qty));
-                java.math.BigDecimal mVal = mRate.multiply(java.math.BigDecimal.valueOf(qty));
-                
-                totalPurchaseValue = totalPurchaseValue.add(pVal);
-                totalMrpValue = totalMrpValue.add(mVal);
-
-                if (s.getExpiryDate() != null) {
-                    if (s.getExpiryDate().isBefore(today)) {
-                        expiredValue = expiredValue.add(pVal);
-                    } else if (!s.getExpiryDate().isAfter(nearExpiryThreshold)) {
-                        nearExpiryValue = nearExpiryValue.add(pVal);
-                    }
-                }
-            }
-        }
+        java.math.BigDecimal totalPurchaseValue = stockRepository.getTotalPurchaseValue();
+        java.math.BigDecimal totalMrpValue = stockRepository.getTotalMrpValue();
+        java.math.BigDecimal expiredValue = stockRepository.getExpiredValue();
+        java.time.LocalDate threshold = java.time.LocalDate.now().plusDays(30);
+        java.math.BigDecimal nearExpiryValue = stockRepository.getNearExpiryValue(threshold);
 
         java.util.Map<String, java.math.BigDecimal> valuation = new java.util.HashMap<>();
-        valuation.put("totalPurchaseValue", totalPurchaseValue);
-        valuation.put("totalMrpValue", totalMrpValue);
-        valuation.put("nearExpiryValue", nearExpiryValue);
-        valuation.put("expiredValue", expiredValue);
+        valuation.put("totalPurchaseValue", totalPurchaseValue != null ? totalPurchaseValue : java.math.BigDecimal.ZERO);
+        valuation.put("totalMrpValue", totalMrpValue != null ? totalMrpValue : java.math.BigDecimal.ZERO);
+        valuation.put("nearExpiryValue", nearExpiryValue != null ? nearExpiryValue : java.math.BigDecimal.ZERO);
+        valuation.put("expiredValue", expiredValue != null ? expiredValue : java.math.BigDecimal.ZERO);
 
         return ResponseEntity.ok(ApiResponse.success(valuation, "Valuation calculated"));
     }
 
-    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_PHARMACY_STAFF')")
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_PHARMACY_STAFF','ROLE_STOREKEEPER','ROLE_PURCHASE_MANAGER')")
     @PostMapping("/purchase-orders/auto-generate")
     public ResponseEntity<ApiResponse<String>> autoGeneratePOs() {
         List<Medicine> medicines = medicineRepository.findAll();
@@ -291,6 +269,7 @@ public class MedicineController {
         return ResponseEntity.ok(ApiResponse.success("Generated " + supplierOrders.size() + " Purchase Orders covering " + generatedCount + " medicines.", "Auto PO Generation successful"));
     }
 
+    @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_STOREKEEPER','ROLE_PHARMACY_STAFF','ROLE_SUPERVISOR','ROLE_CASHIER','ROLE_BILLING_STAFF')")
     @GetMapping("/stocks/low-stock")
     public ResponseEntity<ApiResponse<List<MedicineDTO>>> getLowStockMedicines() {
         List<Medicine> medicines = medicineRepository.findAll();

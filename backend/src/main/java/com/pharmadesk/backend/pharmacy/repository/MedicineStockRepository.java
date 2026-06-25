@@ -77,6 +77,11 @@ public interface MedicineStockRepository extends JpaRepository<MedicineStock, Lo
 
     List<MedicineStock> findByMedicineIdAndDeletedFalse(Long medicineId);
     
+    @Query("SELECT s FROM MedicineStock s JOIN FETCH s.medicine " +
+           "WHERE s.medicine.id IN :ids AND s.deleted = false " +
+           "ORDER BY s.expiryDate ASC")
+    List<MedicineStock> findByMedicineIdInAndDeletedFalseOrderByExpiryDateAsc(@Param("ids") List<Long> ids);
+    
     @Query("SELECT ms.medicine.id, s.name FROM MedicineStock ms JOIN ms.supplier s WHERE ms.deleted = false AND ms.medicine.id IN :medicineIds GROUP BY ms.medicine.id, s.name")
     List<Object[]> findSupplierNamesByMedicineIds(@Param("medicineIds") List<Long> medicineIds);
     

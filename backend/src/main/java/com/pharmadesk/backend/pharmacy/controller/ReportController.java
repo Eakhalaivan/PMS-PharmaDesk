@@ -21,6 +21,15 @@ public class ReportController {
         this.reportService = reportService;
     }
 
+    private void validateDateRange(LocalDateTime from, LocalDateTime to) {
+        if (from.isAfter(to)) {
+            throw new IllegalArgumentException("'from' date must be before 'to' date.");
+        }
+        if (java.time.temporal.ChronoUnit.DAYS.between(from, to) > 90) {
+            throw new IllegalArgumentException("Date range cannot exceed 90 days.");
+        }
+    }
+
     // ─── SALES ────────────────────────────────────────────────────────────────
 
     @GetMapping("/sales")
@@ -28,6 +37,7 @@ public class ReportController {
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getSalesReport(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        validateDateRange(from, to);
         return ResponseEntity.ok(ApiResponse.success(reportService.getSalesReport(from, to), "Sales report"));
     }
 
@@ -36,6 +46,7 @@ public class ReportController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getDailySalesSummary(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        validateDateRange(from, to);
         return ResponseEntity.ok(ApiResponse.success(reportService.getDailySalesSummary(from, to), "Daily summary"));
     }
 
@@ -44,6 +55,7 @@ public class ReportController {
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getItemisedRegister(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        validateDateRange(from, to);
         return ResponseEntity.ok(ApiResponse.success(reportService.getItemisedSalesRegister(from, to), "Itemised register"));
     }
 
@@ -52,6 +64,7 @@ public class ReportController {
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getMedicineWiseSales(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        validateDateRange(from, to);
         return ResponseEntity.ok(ApiResponse.success(reportService.getMedicineWiseSales(from, to), "Medicine-wise sales"));
     }
 
@@ -60,6 +73,7 @@ public class ReportController {
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getCreditSales(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        validateDateRange(from, to);
         return ResponseEntity.ok(ApiResponse.success(reportService.getCreditSalesReport(from, to), "Credit sales"));
     }
 
@@ -68,6 +82,7 @@ public class ReportController {
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getCancelledBills(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        validateDateRange(from, to);
         return ResponseEntity.ok(ApiResponse.success(reportService.getCancelledBillsReport(from, to), "Cancelled bills"));
     }
 
@@ -92,6 +107,7 @@ public class ReportController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
             @RequestParam(defaultValue = "5") int threshold) {
+        validateDateRange(from, to);
         return ResponseEntity.ok(ApiResponse.success(reportService.getSlowMovingStockReport(from, to, threshold), "Slow-moving stock"));
     }
 
@@ -102,6 +118,7 @@ public class ReportController {
     public ResponseEntity<ApiResponse<Map<String, Object>>> getTaxReport(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        validateDateRange(from, to);
         return ResponseEntity.ok(ApiResponse.success(reportService.getTaxReport(from, to), "Tax/GST report"));
     }
 
@@ -110,6 +127,7 @@ public class ReportController {
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getGstSalesRegister(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        validateDateRange(from, to);
         return ResponseEntity.ok(ApiResponse.success(reportService.getGstSalesRegister(from, to), "GST Sales Register"));
     }
 
@@ -120,6 +138,7 @@ public class ReportController {
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getPurchaseRegister(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+        validateDateRange(from, to);
         return ResponseEntity.ok(ApiResponse.success(reportService.getPurchaseRegister(from, to), "Purchase register"));
     }
 

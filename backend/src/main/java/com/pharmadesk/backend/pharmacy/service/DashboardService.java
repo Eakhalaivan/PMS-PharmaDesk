@@ -6,7 +6,11 @@ import com.pharmadesk.backend.pharmacy.enums.PrescriptionStatus;
 import com.pharmadesk.backend.pharmacy.enums.ReturnStatus;
 import com.pharmadesk.backend.pharmacy.repository.*;
 import com.pharmadesk.backend.repository.UserRepository;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -17,6 +21,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class DashboardService {
 
     private final PharmacyBillRepository billRepository;
@@ -46,6 +51,7 @@ public class DashboardService {
         this.purchaseOrderRepository = purchaseOrderRepository;
     }
 
+    @Cacheable(value = "dashboardKpis", key = "#role", unless = "#result == null")
     public DashboardKpiDTO buildKpisForRole(String role) {
         return switch (role) {
             case "SYSTEM_ADMIN", "SUPERVISOR" -> buildAdminKpis();
@@ -148,6 +154,7 @@ public class DashboardService {
                 .collect(Collectors.toList());
     }
 
+    @Cacheable(value = "dashboardAlerts", key = "'alerts'")
     public List<SystemAlertDTO> getAlerts() {
         List<SystemAlertDTO> alerts = new ArrayList<>();
         
@@ -171,6 +178,7 @@ public class DashboardService {
         return alerts;
     }
 
+    @Cacheable(value = "revenueStrip", key = "'strip'")
     public RevenueStripDTO getRevenueStrip() {
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
         LocalDateTime todayEnd = LocalDate.now().atTime(23, 59, 59);
@@ -187,4 +195,8 @@ public class DashboardService {
             monthsTotal != null ? monthsTotal : BigDecimal.ZERO
         );
     }
+
+    @Scheduled(fixedRate = 120_000)
+    @CacheEvict(value = {"dashboardKpis", "revenueStrip", "dashboardAlerts"}, allEntries = true)
+    public void evictDashboardCaches() {}
 }

@@ -114,8 +114,25 @@ const ROLE_CONFIG = {
     kpiKeys: [],
     chartType: 'bar',
     chartLabel: 'Prescriptions Volume',
+    quickActions: []
+  },
+  AUDIT_COMPLIANCE: {
+    greeting: 'Audit & Compliance',
+    subtitle: 'Read-only access to reports, logs, and audit trails.',
+    kpiKeys: [],
+    chartType: 'bar',
+    chartLabel: 'Activity Overview',
     quickActions: [
+      { label: 'View Reports', icon: FileText, path: '/reports' },
     ]
+  },
+  LAB_TECHNICIAN: {
+    greeting: 'Lab Technician',
+    subtitle: 'Lab requests and results overview.',
+    kpiKeys: [],
+    chartType: 'bar',
+    chartLabel: 'Lab Activity',
+    quickActions: []
   }
 };
 
@@ -312,37 +329,18 @@ export default function AdminDashboard() {
 
   const config = ROLE_CONFIG[activeRole] || ROLE_CONFIG.SYSTEM_ADMIN;
 
-  const { data: kpiData, isLoading: kpiLoading } = useQuery({
-    queryKey: ['dashboard-kpis', activeRole],
-    queryFn: () => api.get('/pharmacy/dashboard').then(r => r.data?.data ?? r.data),
+  const { data: summaryData, isLoading: summaryLoading } = useQuery({
+    queryKey: ['dashboard-summary', activeRole],
+    queryFn: () => api.get(`/pharmacy/dashboard/summary?days=7`).then(r => r.data?.data ?? {}),
     staleTime: 60_000,
     refetchInterval: 120_000,
-    placeholderData: (prev) => prev,
     enabled: !!activeRole
   });
 
-  const { data: chartData } = useQuery({
-    queryKey: ['dashboard-chart', activeRole],
-    queryFn: () => api.get(`/pharmacy/dashboard/chart-data?role=${activeRole}&days=7`)
-                      .then(r => r.data?.data ?? []),
-    staleTime: 60_000,
-    enabled: !!activeRole
-  });
-
-  const { data: alerts } = useQuery({
-    queryKey: ['dashboard-alerts', activeRole],
-    queryFn: () => api.get('/pharmacy/dashboard/alerts').then(r => r.data?.data ?? []),
-    staleTime: 30_000,
-    refetchInterval: 60_000,
-    enabled: !!activeRole
-  });
-
-  const { data: revenueStrip } = useQuery({
-    queryKey: ['dashboard-revenue', activeRole],
-    queryFn: () => api.get('/pharmacy/dashboard/revenue-strip').then(r => r.data?.data ?? {}),
-    staleTime: 60_000,
-    enabled: !!activeRole
-  });
+  const kpiData = summaryData?.kpiData;
+  const chartData = summaryData?.chartData;
+  const alerts = summaryData?.alerts;
+  const revenueStrip = summaryData?.revenueStrip;
 
   const handleAction = (actionName) => {
     console.log(`Action triggered: ${actionName}`);

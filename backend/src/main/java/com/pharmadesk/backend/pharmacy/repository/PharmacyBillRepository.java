@@ -22,6 +22,9 @@ public interface PharmacyBillRepository extends JpaRepository<PharmacyBill, Long
     List<PharmacyBill> findByBillingDateAfter(LocalDateTime date);
     List<PharmacyBill> findByBillingDateBetween(LocalDateTime start, LocalDateTime end);
     
+    @Query("SELECT DISTINCT b FROM PharmacyBill b LEFT JOIN FETCH b.items WHERE b.billingDate BETWEEN :start AND :end AND b.deleted = false")
+    List<PharmacyBill> findByBillingDateBetweenWithItems(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
+    
     // Support for existing methods
     Page<PharmacyBill> findByBillType(String billType, Pageable pageable);
     Page<PharmacyBill> findByStatus(String status, Pageable pageable);

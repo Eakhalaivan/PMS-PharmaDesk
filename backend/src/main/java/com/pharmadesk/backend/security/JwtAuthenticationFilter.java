@@ -18,9 +18,13 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Collections;
 import org.springframework.security.core.GrantedAuthority;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
 
     private final JwtUtils jwtUtils;
 
@@ -38,7 +42,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 List<GrantedAuthority> authorities = jwtUtils.getAuthoritiesFromJwtToken(jwt);
 
                 if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    System.out.println("JwtAuthFilter: Authenticating user [" + username + "] with authorities: " + authorities);
+                    log.debug("JwtAuthFilter: Authenticating user [{}] with authorities: {}", username, authorities);
                     
                     // Create a minimal UserDetails object for better compatibility with SecurityContext
                     UserDetails userDetails = new User(username, "", authorities);
@@ -50,10 +54,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 }
             } else if (jwt != null) {
-                System.err.println("JwtAuthFilter: Invalid token received");
+                log.warn("JwtAuthFilter: Invalid token received for request: {}", request.getRequestURI());
             }
         } catch (Exception e) {
-            System.err.println("Cannot set user authentication: " + e.getMessage());
+            log.error("Cannot set user authentication: {}", e.getMessage());
         }
 
         filterChain.doFilter(request, response);

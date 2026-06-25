@@ -10,6 +10,7 @@ import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -32,6 +33,7 @@ public class ActivityLogAspect {
               "@annotation(org.springframework.web.bind.annotation.DeleteMapping))")
     public void controllerModificationMethods() {}
 
+    @Async
     @AfterReturning(pointcut = "controllerModificationMethods()", returning = "result")
     public void logActivity(JoinPoint joinPoint, Object result) {
         try {

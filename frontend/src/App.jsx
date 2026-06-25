@@ -13,7 +13,17 @@ import { SystemProvider } from './context/SystemContext';
 import { LookupProvider } from './context/LookupContext';
 import { ConfigProvider } from './context/ConfigContext';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      gcTime: 5 * 60_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+      retry: 1,
+    },
+  },
+});
 // Eager load critical pages to avoid Suspense hangs during auth flow
 import LoginPage from './pages/LoginPage';
 import AdminDashboard from './pages/AdminDashboard';
@@ -139,16 +149,16 @@ function App() {
               {/* Role-Specific Dashboards */}
               <Route path="dashboard">
                 <Route index element={<RootRedirect />} />
-                <Route path="admin" element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN]}><AdminDashboard /></RoleGuard>} />
-                <Route path="supervisor" element={<RoleGuard allowedRoles={[ROLES.SUPERVISOR]}><SupervisorDashboard /></RoleGuard>} />
-                <Route path="senior-medical" element={<RoleGuard allowedRoles={[ROLES.SENIOR_MEDICAL_STAFF]}><MedicalDashboard /></RoleGuard>} />
-                <Route path="medical" element={<RoleGuard allowedRoles={[ROLES.MEDICAL_STAFF]}><MedicalDashboard /></RoleGuard>} />
-                <Route path="billing" element={<RoleGuard allowedRoles={[ROLES.BILLING_STAFF]}><BillingDashboard /></RoleGuard>} />
-                <Route path="pharmacy" element={<RoleGuard allowedRoles={[ROLES.PHARMACY_STAFF]}><PharmacyDashboard /></RoleGuard>} />
-                <Route path="reception" element={<RoleGuard allowedRoles={[ROLES.RECEPTIONIST]}><RoleDashboard title="Reception Dashboard" description="Patient registration, appointments" /></RoleGuard>} />
-                <Route path="audit" element={<RoleGuard allowedRoles={[ROLES.AUDIT_COMPLIANCE]}><RoleDashboard title="Audit & Compliance Dashboard" description="Read-only report viewer, logs" /></RoleGuard>} />
-                <Route path="lab" element={<RoleGuard allowedRoles={[ROLES.LAB_TECHNICIAN]}><RoleDashboard title="Lab Technician Dashboard" description="Lab requests, reports" /></RoleGuard>} />
-                <Route path="store" element={<RoleGuard allowedRoles={[ROLES.STOREKEEPER]}><StorekeeperDashboard /></RoleGuard>} />
+                <Route path="admin"        element={<RoleGuard allowedRoles={[ROLES.SYSTEM_ADMIN]}><AdminDashboard /></RoleGuard>} />
+                <Route path="supervisor"   element={<RoleGuard allowedRoles={[ROLES.SUPERVISOR]}><AdminDashboard /></RoleGuard>} />
+                <Route path="senior-medical" element={<RoleGuard allowedRoles={[ROLES.SENIOR_MEDICAL_STAFF]}><AdminDashboard /></RoleGuard>} />
+                <Route path="medical"      element={<RoleGuard allowedRoles={[ROLES.MEDICAL_STAFF]}><AdminDashboard /></RoleGuard>} />
+                <Route path="billing"      element={<RoleGuard allowedRoles={[ROLES.BILLING_STAFF]}><AdminDashboard /></RoleGuard>} />
+                <Route path="pharmacy"     element={<RoleGuard allowedRoles={[ROLES.PHARMACY_STAFF]}><PharmacyDashboard /></RoleGuard>} />
+                <Route path="reception"    element={<RoleGuard allowedRoles={[ROLES.RECEPTIONIST]}><AdminDashboard /></RoleGuard>} />
+                <Route path="audit"        element={<RoleGuard allowedRoles={[ROLES.AUDIT_COMPLIANCE]}><AdminDashboard /></RoleGuard>} />
+                <Route path="lab"          element={<RoleGuard allowedRoles={[ROLES.LAB_TECHNICIAN]}><AdminDashboard /></RoleGuard>} />
+                <Route path="store"        element={<RoleGuard allowedRoles={[ROLES.STOREKEEPER]}><AdminDashboard /></RoleGuard>} />
               </Route>
 
               {/* Shared Modules */}

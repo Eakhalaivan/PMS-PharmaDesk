@@ -8,9 +8,8 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.stream.Collectors;
 import java.util.List;
-import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 @Service
 public class UserDetailsServiceImpl implements UserDetailsService {
@@ -24,38 +23,43 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User Not Found with username: " + username));
+                .orElseThrow(() -> new UsernameNotFoundException("User Not Found: " + username));
 
-        boolean isEnabled = !"SUSPENDED".equals(user.getStatus());
+        // Block SUSPENDED and INACTIVE users at the Spring Security layer
+        boolean accountEnabled = "ACTIVE".equalsIgnoreCase(user.getStatus());
 
-        List<SimpleGrantedAuthority> authorities = new ArrayList<>();
-        for (com.pharmadesk.backend.model.Role role : user.getRoles()) {
-            String roleName = role.getName();
-            authorities.add(new SimpleGrantedAuthority(roleName.startsWith("ROLE_") ? roleName : "ROLE_" + roleName));
-            
-            String upper = roleName.toUpperCase();
-            if (upper.contains("ADMIN")) authorities.add(new SimpleGrantedAuthority("ROLE_SYSTEM_ADMIN"));
-            else if (upper.contains("PHARMAC")) authorities.add(new SimpleGrantedAuthority("ROLE_PHARMACY_STAFF"));
-            else if (upper.contains("BILL") || upper.contains("ACCOUNT") || upper.contains("CASH")) authorities.add(new SimpleGrantedAuthority("ROLE_BILLING_STAFF"));
-            else if (upper.contains("STORE") || upper.contains("INVENT") || upper.contains("PURCHASE")) authorities.add(new SimpleGrantedAuthority("ROLE_STOREKEEPER"));
-            else if (upper.contains("LAB") || upper.contains("PATHOLOG")) authorities.add(new SimpleGrantedAuthority("ROLE_LAB_TECHNICIAN"));
-            else if (upper.contains("SUPERVISOR") || upper.contains("MANAGER")) authorities.add(new SimpleGrantedAuthority("ROLE_SUPERVISOR"));
-            else if (upper.contains("RECEPTION") || upper.contains("FRONT")) authorities.add(new SimpleGrantedAuthority("ROLE_RECEPTIONIST"));
-            else if (upper.contains("AUDIT") || upper.contains("COMPLIANCE")) authorities.add(new SimpleGrantedAuthority("ROLE_AUDIT_COMPLIANCE"));
-            else if (upper.contains("SENIOR") && upper.contains("MEDIC")) authorities.add(new SimpleGrantedAuthority("ROLE_SENIOR_MEDICAL_STAFF"));
-            else if (upper.contains("MEDIC") || upper.contains("DOCTOR") || upper.contains("PHYSICIAN") || upper.contains("NURS")) authorities.add(new SimpleGrantedAuthority("ROLE_MEDICAL_STAFF"));
-        }
+        List<SimpleGrantedAuthority> authorities = user.getRoles() == null
+                ? List.of()
+                : user.getRoles().stream()
+                    .filter(role -> role != null && role.getName() != null)
+                    .map(role -> {
+                        String name = role.getName().replace(" ", "_").toUpperCase();
+                        if (!name.startsWith("ROLE_")) name = "ROLE_" + name;
+                        return new SimpleGrantedAuthority(name);
+                    })
+                    .collect(Collectors.toList());
 
+        // Users with no roles get NO access (not pharmacy staff access)
         if (authorities.isEmpty()) {
-            authorities.add(new SimpleGrantedAuthority("ROLE_PHARMACY_STAFF"));
+            // Return enabled=false so login is rejected cleanly with "Bad credentials"
+            return new org.springframework.security.core.userdetails.User(
+                    user.getUsername(),
+                    user.getPasswordHash(),
+                    false,        // enabled
+                    true,         // accountNonExpired
+                    true,         // credentialsNonExpired
+                    true,         // accountNonLocked
+                    List.of(new SimpleGrantedAuthority("ROLE_NO_ACCESS"))
+            );
         }
 
         return new org.springframework.security.core.userdetails.User(
-                user.getUsername(), user.getPasswordHash(),
-                isEnabled,   // enabled
-                true,        // accountNonExpired
-                true,        // credentialsNonExpired
-                isEnabled,   // accountNonLocked
+                user.getUsername(),
+                user.getPasswordHash(),
+                accountEnabled,   // enabled — false = login rejected for SUSPENDED/INACTIVE
+                true,             // accountNonExpired
+                true,             // credentialsNonExpired
+                true,             // accountNonLocked
                 authorities
         );
     }

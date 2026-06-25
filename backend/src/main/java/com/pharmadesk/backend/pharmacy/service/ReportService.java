@@ -4,6 +4,7 @@ import com.pharmadesk.backend.model.MedicineStock;
 import com.pharmadesk.backend.model.PharmacyBill;
 import com.pharmadesk.backend.pharmacy.repository.*;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -12,6 +13,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class ReportService {
 
     private final PharmacyBillRepository billRepository;
@@ -76,7 +78,7 @@ public class ReportService {
     }
 
     public List<Map<String, Object>> getMedicineWiseSales(LocalDateTime from, LocalDateTime to) {
-        List<PharmacyBill> bills = billRepository.findByBillingDateBetween(from, to);
+        List<PharmacyBill> bills = billRepository.findByBillingDateBetweenWithItems(from, to);
         Map<String, Map<String, Object>> grouped = new LinkedHashMap<>();
         bills.forEach(b -> b.getItems().forEach(item -> {
             String name = item.getStock() != null && item.getStock().getMedicine() != null
@@ -98,7 +100,7 @@ public class ReportService {
     }
 
     public List<Map<String, Object>> getItemisedSalesRegister(LocalDateTime from, LocalDateTime to) {
-        List<PharmacyBill> bills = billRepository.findByBillingDateBetween(from, to);
+        List<PharmacyBill> bills = billRepository.findByBillingDateBetweenWithItems(from, to);
         List<Map<String, Object>> rows = new ArrayList<>();
         bills.forEach(b -> b.getItems().forEach(item -> {
             Map<String, Object> m = new LinkedHashMap<>();

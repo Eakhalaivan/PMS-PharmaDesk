@@ -74,8 +74,11 @@ export function AuthProvider({ children }) {
         const finalRoles = parsedRoles.length > 0 ? parsedRoles.map(mapRole) : ['SYSTEM_ADMIN'];
         let finalActiveRole = activeRoleStr ? mapRole(activeRoleStr) : (finalRoles[0] || 'SYSTEM_ADMIN');
 
+        // Re-attach roles to user object for components that read user.roles
+        const userWithRoles = { ...parsedUser, roles: finalRoles };
+
         setAuthState({
-          user: parsedUser,
+          user: userWithRoles,
           roles: finalRoles,
           activeRole: finalActiveRole,
           mustChangePassword: mustChangePasswordStr === 'true',
@@ -117,22 +120,10 @@ export function AuthProvider({ children }) {
       // If the backend wraps the response in ApiResponse, the actual payload is in response.data.data
       const data = response.data.data ? response.data.data : response.data;
       
-      console.log('AuthContext: Login API Success', data);
 
       // Store token
       localStorage.setItem('token', data.token);
       
-      // Store user object
-      const userData = {
-        id:       data.id       || data.userId,
-        name:     data.name     || data.username,
-        username: data.username,
-        email:    data.email    || '',
-        branch:   data.branch   || 'Main Branch',
-      };
-      
-      localStorage.setItem('user', JSON.stringify(userData));
-
       // ── ROLES: handle array (new RBAC) OR single string (legacy) ──
       let rolesArray = [];
       const legacyMap = {
@@ -158,6 +149,18 @@ export function AuthProvider({ children }) {
 
       localStorage.setItem('roles', JSON.stringify(rolesArray));
 
+      // Store user object
+      const userData = {
+        id:       data.id       || data.userId,
+        name:     data.name     || data.username,
+        username: data.username,
+        email:    data.email    || '',
+        branch:   data.branch   || 'Main Branch',
+        roles:    rolesArray,   // ← ADD THIS so Sidebar role-switcher works
+      };
+      
+      localStorage.setItem('user', JSON.stringify(userData));
+
       const primary = getHighestPriorityRole(rolesArray) || rolesArray[0];
       localStorage.setItem('activeRole', primary);
       localStorage.setItem('mustChangePassword', data.mustChangePassword === true ? 'true' : 'false');
@@ -171,7 +174,6 @@ export function AuthProvider({ children }) {
         loading: false
       });
 
-      console.log('Auth: roles set to', rolesArray, '| activeRole:', primary);
       return data;
     } catch (error) {
       const message = error.response?.data?.message || 'Login failed. Please check your credentials.';

@@ -16,8 +16,11 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class SaleService {
@@ -54,6 +57,17 @@ public class SaleService {
 
         BigDecimal subTotal = BigDecimal.ZERO;
         BigDecimal taxTotal = BigDecimal.ZERO;
+
+        List<Long> medicineIds = request.getItems().stream()
+                .filter(i -> i.getMedicineId() != null)
+                .map(SaleItemDTO::getMedicineId)
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<Long, List<MedicineStock>> batchesByMedicine = medicineIds.isEmpty() ? Collections.emptyMap() :
+                stockRepository.findByMedicineIdInAndDeletedFalseOrderByExpiryDateAsc(medicineIds)
+                        .stream()
+                        .collect(Collectors.groupingBy(s -> s.getMedicine().getId()));
 
         for (SaleItemDTO itemDto : request.getItems()) {
             int quantityToDeduct = itemDto.getQuantity();
@@ -94,9 +108,8 @@ public class SaleService {
                 billItem.setNetAmount(lineTotal.add(lineTax));
                 bill.getItems().add(billItem);
             } else if (itemDto.getMedicineId() != null) {
-                // Find all active batches of the medicine, sorted by expiry date ASC (FEFO)
-                List<MedicineStock> batches = stockRepository.findByMedicineIdAndDeletedFalse(itemDto.getMedicineId());
-                batches.sort((b1, b2) -> b1.getExpiryDate().compareTo(b2.getExpiryDate()));
+                // Use pre-fetched batches (FEFO)
+                List<MedicineStock> batches = batchesByMedicine.getOrDefault(itemDto.getMedicineId(), Collections.emptyList());
 
                 int remainingToDeduct = quantityToDeduct;
                 for (MedicineStock stock : batches) {

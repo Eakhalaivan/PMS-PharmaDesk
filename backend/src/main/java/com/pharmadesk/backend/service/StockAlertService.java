@@ -9,6 +9,7 @@ import com.pharmadesk.backend.pharmacy.repository.MedicineStockRepository;
 import com.pharmadesk.backend.repository.StockAlertRepository;
 import com.pharmadesk.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -39,6 +40,7 @@ public class StockAlertService {
         this.emailService = emailService;
     }
 
+    @Async
     public void checkAndAlert(Long medicineId) {
         Medicine medicine = medicineRepository.findById(medicineId).orElse(null);
         if (medicine == null || medicine.getReorderLevel() == null) return;

@@ -138,6 +138,7 @@ public class AuthController {
         user.setBranch(userDto.getBranch());
         user.setShift(userDto.getShift());
         user.setStatus("ACTIVE");
+        user.setMustChangePassword(true); // Force password change on first login
 
         // Initial save to get ID for EMP ID
         User savedFirst = userRepository.save(user);

@@ -16,6 +16,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -146,7 +147,7 @@ public class AnalyticsService {
         query.setParameter("limit", limit);
 
         List<Object[]> rows = query.getResultList();
-        return rows.stream().map(row -> {
+        List<MedicineStatsDTO> dtos = rows.stream().map(row -> {
             MedicineStatsDTO dto = new MedicineStatsDTO();
             dto.setMedicineId(((Number) row[0]).longValue());
             dto.setMedicineName((String) row[1]);
@@ -160,23 +161,33 @@ public class AnalyticsService {
             } else {
                 dto.setAverageUnitsPerTransaction(0.0);
             }
-            
-            // Current stock level
-            Integer stock = stockRepository.sumQuantityByMedicineId(dto.getMedicineId());
-            dto.setCurrentStockLevel(stock != null ? stock : 0);
-            
-            // Days of stock remaining based on daily avg
-            long days = ChronoUnit.DAYS.between(start, end) + 1;
-            double dailyAvg = (double) dto.getTotalUnitsDispensed() / days;
-            if (dailyAvg > 0) {
-                dto.setDaysOfStockRemaining((int) (dto.getCurrentStockLevel() / dailyAvg));
-            } else {
-                dto.setDaysOfStockRemaining(999);
-            }
-            
-            dto.setReorderRecommendation(dto.getDaysOfStockRemaining() < 7);
             return dto;
         }).collect(Collectors.toList());
+
+        if (!dtos.isEmpty()) {
+            List<Long> mIds = dtos.stream().map(MedicineStatsDTO::getMedicineId).collect(Collectors.toList());
+            Map<Long, Integer> stockMap = stockRepository.getStockQuantitiesGroupByMedicineIds(mIds)
+                .stream().collect(Collectors.toMap(
+                    arr -> ((Number) arr[0]).longValue(),
+                    arr -> ((Number) arr[1]).intValue()
+                ));
+
+            long days = ChronoUnit.DAYS.between(start, end) + 1;
+            for (MedicineStatsDTO dto : dtos) {
+                int stock = stockMap.getOrDefault(dto.getMedicineId(), 0);
+                dto.setCurrentStockLevel(stock);
+
+                double dailyAvg = (double) dto.getTotalUnitsDispensed() / days;
+                if (dailyAvg > 0) {
+                    dto.setDaysOfStockRemaining((int) (stock / dailyAvg));
+                } else {
+                    dto.setDaysOfStockRemaining(999);
+                }
+                
+                dto.setReorderRecommendation(dto.getDaysOfStockRemaining() < 7);
+            }
+        }
+        return dtos;
     }
 
     public List<MedicineStatsDTO> getSlowMovingMedicines(LocalDateTime start, LocalDateTime end, int limit) {
@@ -200,7 +211,7 @@ public class AnalyticsService {
         query.setParameter("limit", limit);
 
         List<Object[]> rows = query.getResultList();
-        return rows.stream().map(row -> {
+        List<MedicineStatsDTO> dtos = rows.stream().map(row -> {
             MedicineStatsDTO dto = new MedicineStatsDTO();
             dto.setMedicineId(((Number) row[0]).longValue());
             dto.setMedicineName((String) row[1]);
@@ -217,16 +228,24 @@ public class AnalyticsService {
                     dto.setLastDispensedDate(((java.time.LocalDate) row[4]).atStartOfDay());
                 }
             }
-            
-            Integer stock = stockRepository.sumQuantityByMedicineId(dto.getMedicineId());
-            dto.setCurrentStockLevel(stock != null ? stock : 0);
-            
-            // We need purchase price to get stock value locked. For simplicity, we use unit price.
-            // In a real app we'd fetch the exact batches.
-            dto.setStockValueLocked(BigDecimal.ZERO); 
-            
             return dto;
         }).collect(Collectors.toList());
+
+        if (!dtos.isEmpty()) {
+            List<Long> mIds = dtos.stream().map(MedicineStatsDTO::getMedicineId).collect(Collectors.toList());
+            Map<Long, Integer> stockMap = stockRepository.getStockQuantitiesGroupByMedicineIds(mIds)
+                .stream().collect(Collectors.toMap(
+                    arr -> ((Number) arr[0]).longValue(),
+                    arr -> ((Number) arr[1]).intValue()
+                ));
+
+            for (MedicineStatsDTO dto : dtos) {
+                int stock = stockMap.getOrDefault(dto.getMedicineId(), 0);
+                dto.setCurrentStockLevel(stock);
+                dto.setStockValueLocked(BigDecimal.ZERO);
+            }
+        }
+        return dtos;
     }
 
     private List<TrendDataDTO> getRevenueTrend(LocalDateTime start, LocalDateTime end) {

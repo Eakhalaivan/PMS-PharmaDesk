@@ -65,7 +65,7 @@ public class SecurityConfig {
                 
                 // Public endpoints
                 .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/logout", "/api/auth/otp/**", "/api/auth/refresh").permitAll()
-                .requestMatchers("/api/system/**").permitAll()
+                .requestMatchers("/api/system/**", "/api/config/public", "/api/lookups/bulk").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers("/actuator/**").hasAuthority("ROLE_SYSTEM_ADMIN")
 

@@ -46,6 +46,11 @@ public class SaleControllerIntegrationTest {
             .withUsername("test")
             .withPassword("test");
 
+    @Container
+    public static org.testcontainers.containers.GenericContainer<?> redisContainer =
+            new org.testcontainers.containers.GenericContainer<>("redis:7-alpine")
+                    .withExposedPorts(6379);
+
     @DynamicPropertySource
     static void configureProperties(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", mysqlContainer::getJdbcUrl);
@@ -54,6 +59,9 @@ public class SaleControllerIntegrationTest {
         registry.add("spring.flyway.enabled", () -> "true");
         // Ensure Hibernate auto-ddl is validate or none, rely on Flyway
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "validate");
+        
+        registry.add("spring.redis.host", redisContainer::getHost);
+        registry.add("spring.redis.port", () -> redisContainer.getMappedPort(6379).toString());
     }
 
     @Autowired

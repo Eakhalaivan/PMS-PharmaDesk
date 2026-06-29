@@ -1,4 +1,11 @@
 services:
+  # Redis Service
+  - type: redis
+    name: pharmacy-redis
+    env: docker
+    region: singapore
+    plan: free
+
   # Backend Web Service (Docker)
   - type: web
     name: pharmacy-backend
@@ -8,6 +15,16 @@ services:
     dockerContext: backend
     dockerfilePath: Dockerfile
     envVars:
+      - key: SPRING_REDIS_HOST
+        fromService:
+          type: redis
+          name: pharmacy-redis
+          property: host
+      - key: SPRING_REDIS_PORT
+        fromService:
+          type: redis
+          name: pharmacy-redis
+          property: port
       - key: SPRING_DATASOURCE_URL
         sync: false
       - key: SPRING_DATASOURCE_USERNAME

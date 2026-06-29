@@ -8,6 +8,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import com.pharmadesk.backend.pharmacy.dto.common.PageResponse;
 import java.util.List;
 
 @RestController
@@ -26,8 +29,13 @@ public class DrugInteractionController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<DrugInteraction>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.success(service.getAllInteractions(), "Interactions fetched"));
+    public ResponseEntity<ApiResponse<PageResponse<DrugInteraction>>> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "medicineAId,asc") String[] sort) {
+        Sort.Direction dir = sort[1].equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(dir, sort[0]));
+        return ResponseEntity.ok(ApiResponse.success(service.getAllInteractions(pageRequest), "Interactions fetched"));
     }
 
     @PostMapping
@@ -43,7 +51,12 @@ public class DrugInteractionController {
 
     @GetMapping("/incident-report")
     @PreAuthorize("hasAnyAuthority('ROLE_SYSTEM_ADMIN','ROLE_AUDIT_COMPLIANCE','ROLE_SUPERVISOR','ROLE_PHARMACY_OWNER','ROLE_PHARMACY_STAFF')")
-    public ResponseEntity<ApiResponse<List<DrugInteractionCheck>>> getIncidents() {
-        return ResponseEntity.ok(ApiResponse.success(service.getIncidentReport(), "Interaction overrides and checks logged"));
+    public ResponseEntity<ApiResponse<PageResponse<DrugInteractionCheck>>> getIncidents(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "checkedAt,desc") String[] sort) {
+        Sort.Direction dir = sort[1].equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(dir, sort[0]));
+        return ResponseEntity.ok(ApiResponse.success(service.getIncidentReport(pageRequest), "Interaction overrides and checks logged"));
     }
 }

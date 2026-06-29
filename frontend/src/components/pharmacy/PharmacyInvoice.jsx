@@ -1,6 +1,7 @@
 import React from 'react';
 import { Printer, Download, X } from 'lucide-react';
 import { numberToWords } from '../../utils/numberToWords';
+import api from '../../utils/api';
 
 export default function PharmacyInvoice({ bill, onClose }) {
   if (!bill) return null;
@@ -19,9 +20,24 @@ export default function PharmacyInvoice({ bill, onClose }) {
   const handlePrint = () => { 
     setTimeout(() => window.print(), 300); 
   };
-  const handleDownloadPDF = () => {
-    // We use the browser's native print-to-pdf which is the most reliable for preserving CSS layout
-    setTimeout(() => window.print(), 300);
+  
+  const handleDownloadPDF = async () => {
+    try {
+      const response = await api.get(`/pharmacy/sales/${bill.id}/pdf`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `BILL-${bill.billNumber}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download PDF:', error);
+      alert('Failed to generate PDF. Please try again.');
+    }
   };
 
   return (

@@ -16,6 +16,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import com.pharmadesk.backend.pharmacy.dto.common.PageResponse;
 
 @Service
 public class PurchaseOrderService {
@@ -30,14 +33,6 @@ public class PurchaseOrderService {
         this.poRepository = poRepository;
         this.medicineRepository = medicineRepository;
         this.supplierRepository = supplierRepository;
-    }
-
-    public List<PurchaseOrder> getAllPos() {
-        return poRepository.findAll();
-    }
-
-    public List<PurchaseOrder> getPOsByStatus(String status) {
-        return poRepository.findByStatus(status);
     }
 
     public PurchaseOrder getPoById(String id) {
@@ -120,19 +115,18 @@ public class PurchaseOrderService {
         return summary;
     }
 
-    public org.springframework.data.domain.Page<PurchaseOrder> getAllPosPaged(
-            org.springframework.data.domain.Pageable pageable) {
-        return poRepository.findAll(pageable);
+    public PageResponse<PurchaseOrder> getAllPosPaged(Pageable pageable) {
+        Page<PurchaseOrder> pageResult = poRepository.findAll(pageable);
+        return new PageResponse<>(pageResult);
     }
 
-    public org.springframework.data.domain.Page<PurchaseOrder> getPOsByStatusPaged(
-            String status, org.springframework.data.domain.Pageable pageable) {
-        return poRepository.findByStatus(status, pageable);
+    public PageResponse<PurchaseOrder> getPOsByStatusPaged(String status, Pageable pageable) {
+        Page<PurchaseOrder> pageResult = poRepository.findByStatus(status, pageable);
+        return new PageResponse<>(pageResult);
     }
 
-    public org.springframework.data.domain.Page<PurchaseOrder> searchPOs(
-            String term, org.springframework.data.domain.Pageable pageable) {
-        return poRepository.findByPoNumberContainingIgnoreCaseOrSupplierNameContainingIgnoreCase(
-                term, term, pageable);
+    public PageResponse<PurchaseOrder> searchPOs(String term, Pageable pageable) {
+        Page<PurchaseOrder> pageResult = poRepository.findByPoNumberContainingIgnoreCaseOrSupplierNameContainingIgnoreCase(term, term, pageable);
+        return new PageResponse<>(pageResult);
     }
 }

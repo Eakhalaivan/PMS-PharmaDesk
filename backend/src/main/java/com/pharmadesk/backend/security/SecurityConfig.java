@@ -64,8 +64,8 @@ public class SecurityConfig {
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 
                 // Public endpoints
-                .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/logout", "/api/auth/otp/**").permitAll()
-                .requestMatchers("/api/system/**", "/api/config/**", "/api/lookups/**").permitAll()
+                .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/logout", "/api/auth/otp/**", "/api/auth/refresh").permitAll()
+                .requestMatchers("/api/system/**").permitAll()
                 .requestMatchers("/actuator/health").permitAll()
                 .requestMatchers("/actuator/**").hasAuthority("ROLE_SYSTEM_ADMIN")
 

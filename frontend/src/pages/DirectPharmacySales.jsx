@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Search, Plus, Eye, Printer, XCircle, Trash2, PlusCircle, CheckCircle } from 'lucide-react';
+import { Search, Plus, Eye, Printer, XCircle, Trash2, CheckCircle } from 'lucide-react';
 import ModuleFilterBar from '../components/ui/ModuleFilterBar';
 import DataTable from '../components/ui/DataTable';
 import Pagination from '../components/ui/Pagination';
@@ -10,6 +10,7 @@ import { toast } from 'react-hot-toast';
 import pharmacyService from '../utils/pharmacyService';
 import PharmacyInvoice from '../components/pharmacy/PharmacyInvoice';
 import { useSalesStore } from '../store/useSalesStore';
+import { usePOSStore } from '../store/usePOSStore';
 
 export default function DirectPharmacySales() {
   const {
@@ -22,150 +23,46 @@ export default function DirectPharmacySales() {
     fetchDirectSales: fetchSales
   } = useSalesStore();
 
+  const posStore = usePOSStore();
   const location = useLocation();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [billToDelete, setBillToDelete] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
-  
-
-
-  // OTC Sale Form State
-  const [patientName, setPatientName] = useState('Walk-in');
-  const [mobile, setMobile] = useState('');
-  const [paymentMode, setPaymentMode] = useState('CASH');
-  const [salesItems, setSalesItems] = useState([
-    { id: Math.random(), stockId: null, name: '', batch: '', expiry: '', qty: 1, rate: 0, gstPercent: 0, gstAmount: 0, amount: 0 }
-  ]);
-  
-  // Stock Search State
-  const [searchResults, setSearchResults] = useState([]);
-  const [activeSearchIdx, setActiveSearchIdx] = useState(null);
-  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     fetchSales();
   }, [location.key]);
 
-  const handleStockSearch = async (val, idx) => {
-    if (val.length < 2) {
-      setSearchResults([]);
-      setActiveSearchIdx(null);
-      return;
-    }
-    setActiveSearchIdx(idx);
-    setIsSearching(true);
-    try {
-      const response = await pharmacyService.searchStocks(val);
-      const results = response?.data || response || [];
-      setSearchResults(results);
-      
-      // Auto-select if there's an exact match (case insensitive)
-      const exactMatch = results.find(s => 
-        s.medicine?.name?.toLowerCase() === val.toLowerCase()
-      );
-      if (exactMatch) {
-        selectStock(exactMatch, idx);
-      }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const selectStock = (stock, idx) => {
-    const newItems = [...salesItems];
-    const rate = Number(stock.sellingRate) || 0;
-    const qty = newItems[idx].qty || 1;
-    const gstPercent = Number(stock.medicine?.taxPercentage || stock.medicine?.gstPercent || 0);
-    
-    newItems[idx] = {
-      ...newItems[idx],
-      stockId: stock.id,
-      name: stock.medicine?.name || '',
-      batch: stock.batchNumber || '',
-      expiry: stock.expiryDate || '',
-      rate,
-      gstPercent,
-    };
-    
-    recalculateRow(newItems[idx]);
-    setSalesItems(newItems);
-    setSearchResults([]);
-    setActiveSearchIdx(null);
-  };
-
-  const updateQty = (qty, idx) => {
-    const newItems = [...salesItems];
-    newItems[idx].qty = parseInt(qty) || 0;
-    recalculateRow(newItems[idx]);
-    setSalesItems(newItems);
-  };
-
-  const updateRate = (val, idx) => {
-    const newItems = [...salesItems];
-    newItems[idx].rate = parseFloat(val) || 0;
-    recalculateRow(newItems[idx]);
-    setSalesItems(newItems);
-  };
-
-  const updateGst = (val, idx) => {
-    const newItems = [...salesItems];
-    newItems[idx].gstPercent = parseFloat(val) || 0;
-    recalculateRow(newItems[idx]);
-    setSalesItems(newItems);
-  };
-
-  const recalculateRow = (item) => {
-    const rate = Number(item.rate) || 0;
-    const qty = Number(item.qty) || 0;
-    const gstPercent = Number(item.gstPercent) || 0;
-    
-    const baseAmount = rate * qty;
-    const gstAmount = parseFloat(((baseAmount * gstPercent) / 100).toFixed(2));
-    
-    item.gstAmount = gstAmount;
-    item.amount = parseFloat((baseAmount + gstAmount).toFixed(2));
-  };
-
-  const addRow = () => {
-    setSalesItems([...salesItems, { id: Math.random(), stockId: null, name: '', batch: '', expiry: '', qty: 1, rate: 0, gstPercent: 0, gstAmount: 0, amount: 0 }]);
-  };
-
-  const removeRow = (id) => {
-    if (salesItems.length > 1) setSalesItems(salesItems.filter(item => item.id !== id));
-  };
-
-  const calculateSubtotal = () => salesItems.reduce((acc, item) => acc + (item.rate * item.qty), 0);
-  const calculateGST = () => salesItems.reduce((acc, item) => acc + (item.gstAmount || 0), 0);
-  const calculateNet = () => salesItems.reduce((acc, item) => acc + (item.amount || 0), 0);
+  const calculateSubtotal = () => posStore.rows.reduce((acc, row) => acc + ((Number(row.rate) || 0) * (Number(row.qty) || 0)), 0);
+  const calculateGST = () => posStore.rows.reduce((acc, row) => acc + (((Number(row.rate) || 0) * (Number(row.qty) || 0) * (Number(row.gst) || 0)) / 100), 0);
+  const calculateNet = () => posStore.rows.reduce((acc, row) => acc + (row.amount || 0), 0);
 
   const saveBill = async (options = { shouldPrint: false }) => {
-    const validItems = salesItems.filter(i => i.stockId && i.qty > 0);
+    const validItems = posStore.rows.filter(i => i.stockId && (Number(i.qty) > 0));
     if (validItems.length === 0) { toast.error('Add at least one medicine'); return; }
 
     const payload = {
-      patientName: patientName || 'name',
+      patientName: posStore.patientName || 'Walk-in',
       doctorName: 'Self (OTC)',
       billType: 'OTC',
-      paymentMode: paymentMode,
+      paymentMode: (posStore.paymentType || 'CASH').toUpperCase(),
       items: validItems.map(item => ({ 
         stockId: item.stockId, 
-        quantity: item.qty,
-        unitPrice: item.rate,
-        gstPercent: item.gstPercent
+        quantity: Number(item.qty),
+        unitPrice: Number(item.rate),
+        gstPercent: Number(item.gst)
       }))
     };
 
     try {
       const response = await pharmacyService.createSale(payload);
       const billData = response.data || response;
-      if (response.success) {
+      if (response.success || billData?.id) {
         toast.success('OTC Sale completed!');
         setIsModalOpen(false);
-        resetModal();
+        posStore.resetForm();
         fetchSales();
         
         if (options.shouldPrint) {
@@ -191,15 +88,6 @@ export default function DirectPharmacySales() {
     } catch (error) {
       toast.error('Failed to cancel sale');
     }
-  };
-
-  const resetModal = () => {
-    setPatientName('name');
-    setMobile('');
-    setPaymentMode('CASH');
-    setSalesItems([{ id: Math.random(), stockId: null, name: '', batch: '', expiry: '', qty: 1, rate: 0, gstPercent: 0, gstAmount: 0, amount: 0 }]);
-    setSearchResults([]);
-    setActiveSearchIdx(null);
   };
 
   const columns = [
@@ -267,13 +155,13 @@ export default function DirectPharmacySales() {
       {/* Entry Modal */}
       <AppModal
         isOpen={isModalOpen}
-        onClose={() => { setIsModalOpen(false); resetModal(); }}
+        onClose={() => { setIsModalOpen(false); posStore.resetForm(); }}
         title="Direct OTC Entry"
         maxWidth="sm:max-w-6xl"
         footer={
           <div className="flex justify-between items-center w-full">
             <button 
-              onClick={() => { setIsModalOpen(false); resetModal(); }} 
+              onClick={() => { setIsModalOpen(false); posStore.resetForm(); }} 
               className="px-6 py-2 border border-gray-200 rounded-xl text-sm font-bold text-gray-500 hover:bg-gray-50 transition-all flex items-center gap-2"
             >
               <XCircle className="w-4 h-4" /> Cancel
@@ -301,8 +189,8 @@ export default function DirectPharmacySales() {
               <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Customer Name (Optional)</label>
               <input 
                 type="text" 
-                value={patientName}
-                onChange={(e) => setPatientName(e.target.value)}
+                value={posStore.patientName}
+                onChange={(e) => posStore.setField('patientName', e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-primary/20 bg-white" 
                 placeholder="Walk-in" 
               />
@@ -311,8 +199,8 @@ export default function DirectPharmacySales() {
               <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Mobile Number</label>
               <input 
                 type="text" 
-                value={mobile}
-                onChange={(e) => setMobile(e.target.value)}
+                value={posStore.uhid || ''}
+                onChange={(e) => posStore.setField('uhid', e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-primary/20 bg-white" 
                 placeholder="Contact number" 
               />
@@ -336,105 +224,64 @@ export default function DirectPharmacySales() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
-                    {salesItems.map((item, idx) => (
+                    {posStore.rows.map((item, idx) => (
                       <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-4 py-3 relative">
                           <input 
                             type="text" 
-                            value={item.name}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              const newItems = [...salesItems];
-                              newItems[idx].name = val;
-                              setSalesItems(newItems);
-                              handleStockSearch(val, idx);
-                            }}
-                            onFocus={() => {
-                              setActiveSearchIdx(idx);
-                              if (item.name.length >= 2) handleStockSearch(item.name, idx);
-                            }}
-                            onBlur={() => {
-                              setTimeout(() => setActiveSearchIdx(null), 200);
-                            }}
+                            value={item.codeName}
+                            onChange={(e) => posStore.handleNameChange(idx, e.target.value)}
                             placeholder="Search medicine..." 
                             className="w-full bg-transparent outline-none focus:text-primary font-bold placeholder:text-slate-300 placeholder:font-normal" 
                           />
-                          {activeSearchIdx === idx && item.name.length >= 2 && (
+                          {item.searchResults?.length > 0 && (
                             <div className="absolute z-50 left-0 top-full mt-1 w-96 bg-white shadow-2xl border border-blue-100 rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                              {isSearching ? (
-                                <div className="px-4 py-6 text-center text-slate-400 text-xs flex flex-col items-center gap-2">
-                                  <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                  Searching Inventory...
+                                <div className="bg-slate-50 px-4 py-2 text-[10px] font-bold text-slate-400 border-b border-slate-100 uppercase tracking-widest">
+                                  Available Stock ({item.searchResults.length})
                                 </div>
-                              ) : searchResults.length > 0 ? (
-                                <>
-                                  <div className="bg-slate-50 px-4 py-2 text-[10px] font-bold text-slate-400 border-b border-slate-100 uppercase tracking-widest">
-                                    Available Stock ({searchResults.length})
-                                  </div>
-                                  {searchResults.map((stock) => (
-                                    <div
-                                      key={stock.id}
-                                      onClick={() => selectStock(stock, idx)}
-                                      className="px-4 py-3 hover:bg-primary hover:text-white cursor-pointer border-b last:border-0 transition-all group"
-                                    >
-                                      <div className="font-bold group-hover:text-white">{stock.medicine?.name}</div>
-                                      <div className="flex items-center gap-2 text-[10px] opacity-70 mt-0.5 group-hover:text-white/80">
-                                        <span className="font-mono bg-slate-100 group-hover:bg-white/20 px-1 rounded">BATCH: {stock.batchNumber}</span>
-                                        <span>EXP: {stock.expiryDate}</span>
-                                        <span className="font-bold">STOCK: {stock.quantityAvailable}</span>
-                                      </div>
+                                {item.searchResults.map((stock) => (
+                                  <div
+                                    key={stock.id}
+                                    onClick={() => posStore.selectStock(idx, stock)}
+                                    className="px-4 py-3 hover:bg-primary hover:text-white cursor-pointer border-b last:border-0 transition-all group"
+                                  >
+                                    <div className="font-bold group-hover:text-white">{stock.medicine?.name}</div>
+                                    <div className="flex items-center gap-2 text-[10px] opacity-70 mt-0.5 group-hover:text-white/80">
+                                      <span className="font-mono bg-slate-100 group-hover:bg-white/20 px-1 rounded">BATCH: {stock.batchNumber}</span>
+                                      <span>EXP: {stock.expiryDate}</span>
+                                      <span className="font-bold">STOCK: {stock.quantityAvailable}</span>
                                     </div>
-                                  ))}
-                                </>
-                              ) : (
-                                <div className="px-4 py-8 text-center text-slate-400 text-xs">
-                                  <Search className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                                  <p className="font-bold text-slate-500 uppercase tracking-widest mb-1">No Results Found</p>
-                                  <p className="opacity-70 italic">Try searching for generic name or batch</p>
-                                </div>
-                              )}
+                                  </div>
+                                ))}
                             </div>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-xs text-slate-500 uppercase font-mono">{item.batch || <span className="text-slate-300">-</span>}</td>
-                        <td className="px-4 py-3 text-xs text-slate-500">{item.expiry || <span className="text-slate-300">-</span>}</td>
+                        <td className="px-4 py-3 text-xs text-slate-500 uppercase font-mono">{item.batchNo || <span className="text-slate-300">-</span>}</td>
+                        <td className="px-4 py-3 text-xs text-slate-500">{item.expiryDate || <span className="text-slate-300">-</span>}</td>
                         <td className="px-4 py-3">
                           <input 
                             type="number" 
                             value={item.qty}
-                            onChange={(e) => updateQty(e.target.value, idx)}
+                            onChange={(e) => posStore.updateQty(idx, e.target.value)}
                             className="w-full text-center border border-slate-200 rounded-lg py-1 outline-none focus:border-primary font-bold" 
                           />
                         </td>
-                        <td className="px-4 py-3">
-                          <input 
-                            type="number" 
-                            value={item.rate}
-                            onChange={(e) => updateRate(e.target.value, idx)}
-                            className="w-full text-right bg-transparent border-b border-transparent hover:border-slate-200 focus:border-primary outline-none py-1" 
-                          />
+                        <td className="px-4 py-3 text-right">
+                          {item.rate}
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-center gap-1">
-                            <input 
-                              type="number" 
-                              value={item.gstPercent}
-                              onChange={(e) => updateGst(e.target.value, idx)}
-                              className="w-12 text-center bg-transparent border-b border-transparent hover:border-slate-200 focus:border-primary outline-none py-1 text-xs font-bold text-amber-600" 
-                            />
-                            <span className="text-[10px] font-bold text-amber-400">%</span>
-                          </div>
+                        <td className="px-4 py-3 text-center text-amber-600 font-bold text-xs">
+                          {item.gst} <span className="text-amber-400">%</span>
                         </td>
                         <td className="px-4 py-3 text-right font-bold text-slate-900">₹{Number(item.amount).toFixed(2)}</td>
                         <td className="px-4 py-3 text-center">
-                          <button onClick={() => removeRow(item.id)} className="p-1 text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button>
+                          <button onClick={() => posStore.removeRow(idx)} className="p-1 text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4"/></button>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              <button onClick={addRow} className="w-full py-3 bg-slate-50 text-primary text-xs font-bold uppercase tracking-widest hover:bg-slate-100 transition-all border-t border-slate-100">+ Add Medicine Row</button>
+              <button onClick={posStore.addRow} className="w-full py-3 bg-slate-50 text-primary text-xs font-bold uppercase tracking-widest hover:bg-slate-100 transition-all border-t border-slate-100">+ Add Medicine Row</button>
             </div>
           </div>
 
@@ -443,12 +290,12 @@ export default function DirectPharmacySales() {
                <div className="w-64 space-y-1.5">
                   <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Payment Mode</label>
                   <select 
-                    value={paymentMode}
-                    onChange={(e) => setPaymentMode(e.target.value)}
+                    value={posStore.paymentType}
+                    onChange={(e) => posStore.setField('paymentType', e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-primary/20 bg-white font-semibold"
                   >
-                    <option value="CASH">Cash</option>
-                    <option value="CARD">Card</option>
+                    <option value="Cash">Cash</option>
+                    <option value="Card">Card</option>
                     <option value="UPI">UPI / QR Code</option>
                   </select>
                </div>

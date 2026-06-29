@@ -1,6 +1,10 @@
 package com.pharmadesk.backend.model;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
@@ -11,11 +15,17 @@ import java.time.LocalDate;
 @Table(name = "medicine_stocks")
 @SQLDelete(sql = "UPDATE medicine_stocks SET is_deleted = true WHERE id=?")
 @SQLRestriction("is_deleted=false")
+@FilterDef(name = "branchFilter", parameters = @ParamDef(name = "branchId", type = Long.class))
+@Filter(name = "branchFilter", condition = "branch_id = :branchId")
 public class MedicineStock extends BaseEntity {
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "medicine_id", nullable = false)
+    @JsonBackReference
     private Medicine medicine;
+
+    @Column(name = "branch_id", nullable = false)
+    private Long branchId = 1L;
 
     @Column(name = "batch_number", nullable = false)
     private String batchNumber;
@@ -51,6 +61,9 @@ public class MedicineStock extends BaseEntity {
     // Getters and Setters
     public Medicine getMedicine() { return medicine; }
     public void setMedicine(Medicine medicine) { this.medicine = medicine; }
+
+    public Long getBranchId() { return branchId; }
+    public void setBranchId(Long branchId) { this.branchId = branchId; }
 
     public String getBatchNumber() { return batchNumber; }
     public void setBatchNumber(String batchNumber) { this.batchNumber = batchNumber; }

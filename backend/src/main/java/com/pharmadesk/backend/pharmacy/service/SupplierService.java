@@ -1,7 +1,9 @@
 package com.pharmadesk.backend.pharmacy.service;
 
 import com.pharmadesk.backend.model.*;
+import com.pharmadesk.backend.sales.model.*;
 import com.pharmadesk.backend.pharmacy.repository.*;
+import com.pharmadesk.backend.sales.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 

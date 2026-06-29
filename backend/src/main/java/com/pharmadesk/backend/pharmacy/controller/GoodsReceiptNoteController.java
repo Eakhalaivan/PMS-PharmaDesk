@@ -7,6 +7,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import com.pharmadesk.backend.pharmacy.dto.common.PageResponse;
 import java.util.List;
 
 @RestController
@@ -20,8 +23,13 @@ public class GoodsReceiptNoteController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<GoodsReceiptNote>>> getAll() {
-        return ResponseEntity.ok(ApiResponse.success(grnService.getAll(), "GRNs fetched"));
+    public ResponseEntity<ApiResponse<PageResponse<GoodsReceiptNote>>> getAll(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt,desc") String[] sort) {
+        Sort.Direction dir = sort[1].equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(dir, sort[0]));
+        return ResponseEntity.ok(ApiResponse.success(grnService.getAll(pageRequest), "GRNs fetched"));
     }
 
     @GetMapping("/supplier/{supplierId}")

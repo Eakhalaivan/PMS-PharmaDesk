@@ -7,6 +7,9 @@ import com.pharmadesk.backend.pharmacy.repository.DrugInteractionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import com.pharmadesk.backend.pharmacy.dto.common.PageResponse;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -27,8 +30,9 @@ public class DrugInteractionService {
         return interactionRepository.checkInteractions(medicineIds);
     }
 
-    public List<DrugInteraction> getAllInteractions() {
-        return interactionRepository.findAll();
+    public PageResponse<DrugInteraction> getAllInteractions(Pageable pageable) {
+        Page<DrugInteraction> pageResult = interactionRepository.findAll(pageable);
+        return new PageResponse<>(pageResult);
     }
 
     @Transactional
@@ -44,7 +48,8 @@ public class DrugInteractionService {
         return checkRepository.save(check);
     }
 
-    public List<DrugInteractionCheck> getIncidentReport() {
-        return checkRepository.findAll();
+    public PageResponse<DrugInteractionCheck> getIncidentReport(Pageable pageable) {
+        Page<DrugInteractionCheck> pageResult = checkRepository.findAll(pageable);
+        return new PageResponse<>(pageResult);
     }
 }

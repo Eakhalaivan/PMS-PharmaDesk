@@ -9,7 +9,7 @@ services:
     dockerfilePath: Dockerfile
     envVars:
       - key: SPRING_DATASOURCE_URL
-        value: jdbc:mysql://gateway01.ap-southeast-1.prod.alicloud.tidbcloud.com:4000/pms?useSSL=true&enabledTLSProtocols=TLSv1.2,TLSv1.3&sslMode=REQUIRED
+        sync: false
       - key: SPRING_DATASOURCE_USERNAME
         sync: false
       - key: SPRING_DATASOURCE_PASSWORD

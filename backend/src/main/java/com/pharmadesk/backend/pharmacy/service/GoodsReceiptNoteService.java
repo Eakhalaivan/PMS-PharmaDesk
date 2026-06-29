@@ -1,7 +1,9 @@
 package com.pharmadesk.backend.pharmacy.service;
 
 import com.pharmadesk.backend.model.*;
+import com.pharmadesk.backend.sales.model.*;
 import com.pharmadesk.backend.pharmacy.repository.*;
+import com.pharmadesk.backend.sales.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -9,6 +11,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import com.pharmadesk.backend.pharmacy.dto.common.PageResponse;
 import java.util.List;
 
 @Service
@@ -29,8 +34,9 @@ public class GoodsReceiptNoteService {
         this.stockRepository = stockRepository;
     }
 
-    public List<GoodsReceiptNote> getAll() {
-        return grnRepository.findAll();
+    public PageResponse<GoodsReceiptNote> getAll(Pageable pageable) {
+        Page<GoodsReceiptNote> pageResult = grnRepository.findAll(pageable);
+        return new PageResponse<>(pageResult);
     }
 
     public List<GoodsReceiptNote> getBySupplier(Long supplierId) {

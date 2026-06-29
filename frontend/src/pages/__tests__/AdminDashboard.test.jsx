@@ -22,6 +22,13 @@ vi.mock('../utils/api', () => ({
   },
 }));
 
+vi.mock('../../context/AuthContext', () => ({
+  useAuth: () => ({
+    user: { id: 1, name: 'Admin' },
+    activeRole: 'SYSTEM_ADMIN'
+  })
+}));
+
 import { useQuery } from '@tanstack/react-query';
 
 const renderWithProviders = (component) => {

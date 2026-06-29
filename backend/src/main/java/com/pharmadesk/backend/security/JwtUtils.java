@@ -2,6 +2,8 @@ package com.pharmadesk.backend.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -10,6 +12,7 @@ import org.springframework.stereotype.Component;
 import java.security.Key;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -17,6 +20,8 @@ import java.util.ArrayList;
 
 @Component
 public class JwtUtils {
+
+    private static final Logger log = LoggerFactory.getLogger(JwtUtils.class);
 
     @Value("${jwt.secret}")
     private String jwtSecret;
@@ -37,7 +42,8 @@ public class JwtUtils {
                 .collect(Collectors.toList());
 
         return Jwts.builder()
-                .setSubject((userPrincipal.getUsername()))
+                .setSubject(userPrincipal.getUsername())
+                .setId(UUID.randomUUID().toString()) // jti claim
                 .claim("roles", roles)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date((new Date()).getTime() + jwtExpirationMs))
@@ -48,6 +54,30 @@ public class JwtUtils {
     public String getUserNameFromJwtToken(String token) {
         return Jwts.parserBuilder().setSigningKey(getSigningKey()).build()
                 .parseClaimsJws(token).getBody().getSubject();
+    }
+
+    public Long getBranchIdFromJwtToken(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder().setSigningKey(getSigningKey()).build()
+                    .parseClaimsJws(token).getBody();
+            Object branchObj = claims.get("branch");
+            if (branchObj != null) {
+                return Long.valueOf(branchObj.toString());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to extract branch from token");
+        }
+        return 1L; // default branch
+    }
+    
+    public String getJtiFromJwtToken(String token) {
+        return Jwts.parserBuilder().setSigningKey(getSigningKey()).build()
+                .parseClaimsJws(token).getBody().getId();
+    }
+    
+    public Date getExpirationFromJwtToken(String token) {
+        return Jwts.parserBuilder().setSigningKey(getSigningKey()).build()
+                .parseClaimsJws(token).getBody().getExpiration();
     }
 
     public List<GrantedAuthority> getAuthoritiesFromJwtToken(String token) {
@@ -69,23 +99,22 @@ public class JwtUtils {
                                 .parseClaimsJws(authToken).getBody();
             List<?> roles = claims.get("roles", List.class);
             if (roles == null || roles.isEmpty()) {
-                System.err.println("JwtUtils: Token missing roles claim or empty roles, treating as invalid.");
+                log.warn("JwtUtils: Token missing roles claim or empty roles, treating as invalid.");
                 return false;
             }
             return true;
         } catch (io.jsonwebtoken.security.SignatureException e) {
-            System.err.println("JwtUtils: Invalid JWT signature: " + e.getMessage());
-            System.err.println("JwtUtils: Token that failed: " + authToken);
+            log.warn("JwtUtils: Invalid JWT signature: {}", e.getMessage());
         } catch (io.jsonwebtoken.MalformedJwtException e) {
-            System.err.println("JwtUtils: Invalid JWT token: " + e.getMessage());
+            log.warn("JwtUtils: Invalid JWT token: {}", e.getMessage());
         } catch (io.jsonwebtoken.ExpiredJwtException e) {
-            System.err.println("JwtUtils: JWT token is expired: " + e.getMessage());
+            log.warn("JwtUtils: JWT token is expired: {}", e.getMessage());
         } catch (io.jsonwebtoken.UnsupportedJwtException e) {
-            System.err.println("JwtUtils: JWT token is unsupported: " + e.getMessage());
+            log.warn("JwtUtils: JWT token is unsupported: {}", e.getMessage());
         } catch (IllegalArgumentException e) {
-            System.err.println("JwtUtils: JWT claims string is empty: " + e.getMessage());
+            log.warn("JwtUtils: JWT claims string is empty: {}", e.getMessage());
         } catch (Exception e) {
-            System.err.println("JwtUtils: Unexpected error validating JWT: " + e.getClass().getName() + " - " + e.getMessage());
+            log.warn("JwtUtils: Unexpected error validating JWT: {} - {}", e.getClass().getName(), e.getMessage());
         }
         return false;
     }

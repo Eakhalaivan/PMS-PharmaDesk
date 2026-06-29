@@ -7,15 +7,26 @@ import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDate;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
 
 @Entity
 @Table(name = "patients")
 @SQLDelete(sql = "UPDATE patients SET is_deleted = true WHERE id=?")
 @SQLRestriction("is_deleted=false")
+@FilterDef(name = "branchFilter", parameters = @ParamDef(name = "branchId", type = Long.class))
+@Filter(name = "branchFilter", condition = "branch_id = :branchId")
 public class Patient extends BaseEntity {
 
     @Column(nullable = false, unique = true)
     private String uhid;
+
+    @Column(name = "branch_id", nullable = false)
+    private Long branchId = 1L;
+
+    public Long getBranchId() { return branchId; }
+    public void setBranchId(Long branchId) { this.branchId = branchId; }
 
     @Column(nullable = false)
     private String name;

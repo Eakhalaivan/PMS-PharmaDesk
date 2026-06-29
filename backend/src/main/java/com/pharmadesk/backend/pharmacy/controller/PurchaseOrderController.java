@@ -9,6 +9,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import com.pharmadesk.backend.pharmacy.dto.common.PageResponse;
 
 @RestController
 @RequestMapping({"/api/purchase-orders", "/api/pharmacy/purchase-orders"})
@@ -21,15 +25,15 @@ public class PurchaseOrderController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Object>> getPOs(
+    public ResponseEntity<ApiResponse<PageResponse<PurchaseOrder>>> getPOs(
             @RequestParam(value = "status",     required = false) String status,
             @RequestParam(value = "searchTerm", required = false) String searchTerm,
             @RequestParam(value = "page",       defaultValue = "0")  int page,
-            @RequestParam(value = "size",       defaultValue = "20") int size) {
+            @RequestParam(value = "size",       defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt,desc") String[] sort) {
 
-        org.springframework.data.domain.Pageable pageable =
-                org.springframework.data.domain.PageRequest.of(page, size,
-                        org.springframework.data.domain.Sort.by("createdAt").descending());
+        Sort.Direction dir = sort.length > 1 && sort[1].equalsIgnoreCase("asc") ? Sort.Direction.ASC : Sort.Direction.DESC;
+        Pageable pageable = PageRequest.of(page, size, Sort.by(dir, sort[0]));
 
         // TopNav badge call: ?status=PENDING&size=20 — return Page so frontend counts totalElements
         if (status != null && !status.isBlank() && !status.equalsIgnoreCase("ALL")) {
@@ -42,15 +46,15 @@ public class PurchaseOrderController {
                     "draft","submitted","approved","sent","partially_received","completed","cancelled");
             if (!valid.contains(dbStatus)) {
                 return ResponseEntity.ok(ApiResponse.success(
-                        org.springframework.data.domain.Page.empty(pageable), "No POs found"));
+                        new PageResponse<>(List.of(), 0, 0, 0, size), "No POs found"));
             }
-            org.springframework.data.domain.Page<PurchaseOrder> poPage =
+            PageResponse<PurchaseOrder> poPage =
                     service.getPOsByStatusPaged(dbStatus, pageable);
             return ResponseEntity.ok(ApiResponse.success(poPage, "POs fetched"));
         }
 
         // Normal list call with optional searchTerm
-        org.springframework.data.domain.Page<PurchaseOrder> poPage =
+        PageResponse<PurchaseOrder> poPage =
                 (searchTerm != null && !searchTerm.isBlank())
                         ? service.searchPOs(searchTerm.trim(), pageable)
                         : service.getAllPosPaged(pageable);

@@ -1,5 +1,8 @@
 package com.pharmadesk.backend.pharmacy.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.pharmadesk.backend.model.BatchReturnToSupplier;
 import com.pharmadesk.backend.model.StockBatch;
 import com.pharmadesk.backend.pharmacy.repository.BatchReturnToSupplierRepository;
@@ -8,6 +11,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import com.pharmadesk.backend.pharmacy.dto.common.PageResponse;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -18,6 +24,8 @@ import java.util.Map;
 @Service
 public class ExpiryTrackerService {
 
+    private static final Logger log = LoggerFactory.getLogger(ExpiryTrackerService.class);
+
     private final StockBatchRepository batchRepository;
     private final BatchReturnToSupplierRepository returnRepository;
 
@@ -27,26 +35,19 @@ public class ExpiryTrackerService {
         this.returnRepository = returnRepository;
     }
 
-    public List<StockBatch> getFefoStockView() {
-        return batchRepository.findAllOrderByFefo();
+    public PageResponse<StockBatch> getFefoStockView(Pageable pageable) {
+        Page<StockBatch> pageResult = batchRepository.findAllOrderByFefo(pageable);
+        return new PageResponse<>(pageResult);
     }
 
     public Map<String, Object> getExpirySummary() {
-        List<StockBatch> all = batchRepository.findAll();
-        long activeCount = all.stream().filter(b -> b.getQuantityAvailable() > 0).count();
-        long within15Days = all.stream().filter(b -> {
-            long days = java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), b.getExpiryDate());
-            return days >= 0 && days <= 15 && b.getQuantityAvailable() > 0;
-        }).count();
-        long within30Days = all.stream().filter(b -> {
-            long days = java.time.temporal.ChronoUnit.DAYS.between(LocalDate.now(), b.getExpiryDate());
-            return days >= 0 && days <= 30 && b.getQuantityAvailable() > 0;
-        }).count();
-
-        BigDecimal expiredValue = all.stream()
-                .filter(b -> b.getExpiryDate().isBefore(LocalDate.now()) && b.getQuantityAvailable() > 0)
-                .map(b -> b.getPurchasePrice().multiply(BigDecimal.valueOf(b.getQuantityAvailable())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        LocalDate today = LocalDate.now();
+        long activeCount = batchRepository.countActiveBatches();
+        long within15Days = batchRepository.countExpiringBatches(today, today.plusDays(15));
+        long within30Days = batchRepository.countExpiringBatches(today, today.plusDays(30));
+        BigDecimal expiredValue = batchRepository.sumExpiredStockValue(today);
+        
+        if (expiredValue == null) expiredValue = BigDecimal.ZERO;
 
         Map<String, Object> summary = new HashMap<>();
         summary.put("totalActiveBatches", activeCount);
@@ -90,21 +91,20 @@ public class ExpiryTrackerService {
         return returnRepository.save(ret);
     }
 
-    public List<BatchReturnToSupplier> getAllReturns() {
-        return returnRepository.findAll();
+    public PageResponse<BatchReturnToSupplier> getAllReturns(Pageable pageable) {
+        Page<BatchReturnToSupplier> pageResult = returnRepository.findAll(pageable);
+        return new PageResponse<>(pageResult);
     }
 
     @Scheduled(cron = "0 0 0 * * ?") // Midnight daily
     @Transactional
     public void triggerExpiryAlertJob() {
-        List<StockBatch> all = batchRepository.findAll();
         LocalDate now = LocalDate.now();
-        for (StockBatch b : all) {
-            if (b.getExpiryDate().isBefore(now) && !b.isExpired()) {
-                b.setExpired(true);
-                batchRepository.save(b);
-                System.out.println("ALERT: Batch " + b.getBatchNumber() + " has expired.");
-            }
+        List<StockBatch> expiredBatches = batchRepository.findByExpiryDateBeforeAndExpiredFalse(now);
+        for (StockBatch b : expiredBatches) {
+            b.setExpired(true);
+            batchRepository.save(b);
+            log.warn("ALERT: Batch {} has expired.", b.getBatchNumber());
         }
     }
 }

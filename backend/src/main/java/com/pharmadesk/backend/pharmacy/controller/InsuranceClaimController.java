@@ -8,6 +8,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import com.pharmadesk.backend.pharmacy.dto.common.PageResponse;
 import java.util.List;
 
 @RestController
@@ -21,8 +24,13 @@ public class InsuranceClaimController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<InsuranceClaim>>> getClaims() {
-        return ResponseEntity.ok(ApiResponse.success(service.getAllClaims(), "Claims fetched"));
+    public ResponseEntity<ApiResponse<PageResponse<InsuranceClaim>>> getClaims(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt,desc") String[] sort) {
+        Sort.Direction dir = sort[1].equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(dir, sort[0]));
+        return ResponseEntity.ok(ApiResponse.success(service.getAllClaims(pageRequest), "Claims fetched"));
     }
 
     @GetMapping("/{id}")
@@ -43,8 +51,13 @@ public class InsuranceClaimController {
     }
 
     @GetMapping("/providers")
-    public ResponseEntity<ApiResponse<List<InsuranceProvider>>> getProviders() {
-        return ResponseEntity.ok(ApiResponse.success(service.getAllProviders(), "Insurance providers fetched"));
+    public ResponseEntity<ApiResponse<PageResponse<InsuranceProvider>>> getProviders(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt,desc") String[] sort) {
+        Sort.Direction dir = sort[1].equalsIgnoreCase("desc") ? Sort.Direction.DESC : Sort.Direction.ASC;
+        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(dir, sort[0]));
+        return ResponseEntity.ok(ApiResponse.success(service.getAllProviders(pageRequest), "Insurance providers fetched"));
     }
 
     @PostMapping("/providers")

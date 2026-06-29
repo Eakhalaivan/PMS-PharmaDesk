@@ -8,6 +8,9 @@ import com.pharmadesk.backend.pharmacy.repository.InsuranceProviderRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import com.pharmadesk.backend.pharmacy.dto.common.PageResponse;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -24,8 +27,9 @@ public class InsuranceClaimService {
         this.providerRepository = providerRepository;
     }
 
-    public List<InsuranceClaim> getAllClaims() {
-        return claimRepository.findAll();
+    public PageResponse<InsuranceClaim> getAllClaims(Pageable pageable) {
+        Page<InsuranceClaim> pageResult = claimRepository.findAll(pageable);
+        return new PageResponse<>(pageResult);
     }
 
     public InsuranceClaim getClaimById(String id) {
@@ -60,8 +64,9 @@ public class InsuranceClaimService {
         return claimRepository.save(claim);
     }
 
-    public List<InsuranceProvider> getAllProviders() {
-        return providerRepository.findAll();
+    public PageResponse<InsuranceProvider> getAllProviders(Pageable pageable) {
+        Page<InsuranceProvider> pageResult = providerRepository.findAll(pageable);
+        return new PageResponse<>(pageResult);
     }
 
     @Transactional

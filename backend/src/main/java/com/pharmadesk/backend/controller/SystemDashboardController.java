@@ -1,6 +1,7 @@
 package com.pharmadesk.backend.controller;
 
 import com.pharmadesk.backend.pharmacy.repository.*;
+import com.pharmadesk.backend.sales.repository.*;
 import com.pharmadesk.backend.repository.ActivityLogRepository;
 import com.pharmadesk.backend.repository.UserRepository;
 import com.pharmadesk.backend.pharmacy.enums.PrescriptionStatus;

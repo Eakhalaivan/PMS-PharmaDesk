@@ -4,52 +4,50 @@ import { useAuth } from '../context/AuthContext';
 import { Building2, KeyRound, User as UserIcon, Lock, Loader2, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { DASHBOARD_ROUTES } from '../config/roles.config';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { loginSchema } from '../schema/validations';
 
 export default function LoginPage() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(''); // inline error — always visible regardless of toast
+  const [error, setError] = useState(''); 
 
   const { login, isAuthenticated, activeRole } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect already-authenticated users.
-  // Guard with `loading` so a successful auth state update during a login
-  // attempt doesn't fire this redirect before the catch block can show the error.
+  const { register, handleSubmit, formState: { errors }, resetField } = useForm({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      username: '',
+      password: ''
+    }
+  });
+
   React.useEffect(() => {
-    if (loading) return;
     if (isAuthenticated && activeRole) {
       const target = DASHBOARD_ROUTES[activeRole] || '/dashboard/pharmacy';
       navigate(target, { replace: true });
     }
-  }, [isAuthenticated, activeRole, navigate, loading]);
+  }, [isAuthenticated, activeRole, navigate]);
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const onSubmit = async (data) => {
     setError('');
-
-    if (!username.trim() || !password.trim()) {
-      setError('Please enter both username and password.');
-      return;
-    }
-
     setLoading(true);
     try {
-      await login(username.trim(), password);
+      await login(data.username.trim(), data.password);
       toast.success('Successfully logged in');
-      // Navigation is intentionally omitted here to prevent a double-navigate race.
-      // The useEffect hook above will handle the redirect once setLoading(false) runs.
+      const role = localStorage.getItem('activeRole') || 'SYSTEM_ADMIN';
+      const target = DASHBOARD_ROUTES[role] || '/dashboard/pharmacy';
+      navigate(target, { replace: true });
     } catch (err) {
-      // Try to pull the most informative message from the backend response
       const msg =
         err?.response?.data?.message ||
         err?.response?.data?.error ||
         err?.message ||
         'Invalid username or password. Please try again.';
-      setError(msg);        // always shown inline
-      toast.error(msg);     // also shown as toast if available
-      setPassword('');      // clear password field on failure
+      setError(msg);
+      toast.error(msg);
+      resetField('password');
     } finally {
       setLoading(false);
     }
@@ -73,7 +71,7 @@ export default function LoginPage() {
         </div>
 
         {/* Form */}
-        <form className="mt-8 space-y-4" onSubmit={handleLogin}>
+        <form className="mt-8 space-y-4" onSubmit={handleSubmit(onSubmit)}>
 
           {/* Username */}
           <div className="relative">
@@ -82,16 +80,18 @@ export default function LoginPage() {
             </div>
             <input
               id="username"
-              name="username"
               type="text"
               autoComplete="username"
-              required
-              className="block w-full pl-12 pr-4 py-4 bg-gray-50 border border-gray-200 rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent transition-all sm:text-sm"
+              className={`block w-full pl-12 pr-4 py-4 bg-gray-50 border rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent transition-all sm:text-sm ${
+                errors.username ? 'border-red-400 bg-red-50' : 'border-gray-200'
+              }`}
               placeholder="Username"
-              value={username}
-              onChange={(e) => { setUsername(e.target.value); setError(''); }}
+              {...register('username')}
             />
           </div>
+          {errors.username && (
+            <p className="text-red-500 text-xs font-medium pl-2">{errors.username.message}</p>
+          )}
 
           {/* Password */}
           <div className="relative">
@@ -100,18 +100,18 @@ export default function LoginPage() {
             </div>
             <input
               id="password"
-              name="password"
               type="password"
               autoComplete="current-password"
-              required
               className={`block w-full pl-12 pr-4 py-4 bg-gray-50 border rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent transition-all sm:text-sm ${
-                error ? 'border-red-400 bg-red-50' : 'border-gray-200'
+                (errors.password || error) ? 'border-red-400 bg-red-50' : 'border-gray-200'
               }`}
               placeholder="Password"
-              value={password}
-              onChange={(e) => { setPassword(e.target.value); setError(''); }}
+              {...register('password')}
             />
           </div>
+          {errors.password && (
+            <p className="text-red-500 text-xs font-medium pl-2">{errors.password.message}</p>
+          )}
 
           {/* Inline error — always visible, no dependency on toast */}
           {error && (

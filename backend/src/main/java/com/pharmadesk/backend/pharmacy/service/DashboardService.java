@@ -5,6 +5,7 @@ import com.pharmadesk.backend.pharmacy.enums.PaymentStatus;
 import com.pharmadesk.backend.pharmacy.enums.PrescriptionStatus;
 import com.pharmadesk.backend.pharmacy.enums.ReturnStatus;
 import com.pharmadesk.backend.pharmacy.repository.*;
+import com.pharmadesk.backend.sales.repository.*;
 import com.pharmadesk.backend.repository.UserRepository;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;

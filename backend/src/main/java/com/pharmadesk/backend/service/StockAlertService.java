@@ -40,7 +40,7 @@ public class StockAlertService {
         this.emailService = emailService;
     }
 
-    @Async
+    @Async("alertExecutor")
     public void checkAndAlert(Long medicineId) {
         Medicine medicine = medicineRepository.findById(medicineId).orElse(null);
         if (medicine == null || medicine.getReorderLevel() == null) return;
@@ -74,5 +74,9 @@ public class StockAlertService {
                 }
             }
         }
+    }
+
+    public long getLowStockCount() {
+        return alertRepository.count();
     }
 }

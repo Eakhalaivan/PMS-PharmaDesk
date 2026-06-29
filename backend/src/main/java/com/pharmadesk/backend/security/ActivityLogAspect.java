@@ -1,5 +1,8 @@
 package com.pharmadesk.backend.security;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.pharmadesk.backend.model.ActivityLog;
 import com.pharmadesk.backend.model.User;
 import com.pharmadesk.backend.repository.ActivityLogRepository;
@@ -18,6 +21,8 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 @Aspect
 @Component
 public class ActivityLogAspect {
+
+    private static final Logger log = LoggerFactory.getLogger(ActivityLogAspect.class);
 
     private final ActivityLogRepository activityLogRepository;
     private final UserRepository userRepository;
@@ -56,7 +61,7 @@ public class ActivityLogAspect {
             activityLogRepository.save(log);
         } catch (Exception e) {
             // Log the error but don't break the application flow
-            System.err.println("Failed to log activity: " + e.getMessage());
+            log.error("Failed to log activity: {}", e.getMessage());
         }
     }
 

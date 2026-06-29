@@ -1,8 +1,13 @@
 package com.pharmadesk.backend.pharmacy.service;
 
 import com.pharmadesk.backend.model.MedicineStock;
-import com.pharmadesk.backend.model.PharmacyBill;
+import com.pharmadesk.backend.sales.model.PharmacyBill;
 import com.pharmadesk.backend.pharmacy.repository.*;
+import com.pharmadesk.backend.sales.repository.*;
+import com.pharmadesk.backend.pharmacy.dto.common.PageResponse;
+import com.pharmadesk.backend.pharmacy.dto.reports.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,42 +27,45 @@ public class ReportService {
     private final SupplierInvoiceRepository invoiceRepository;
     private final PurchaseOrderRepository poRepository;
     private final SupplierPerformanceRepository performanceRepository;
+    private final PharmacyBillItemRepository billItemRepository;
 
     public ReportService(PharmacyBillRepository billRepository,
                          MedicineStockRepository stockRepository,
                          GoodsReceiptNoteRepository grnRepository,
                          SupplierInvoiceRepository invoiceRepository,
                          PurchaseOrderRepository poRepository,
-                         SupplierPerformanceRepository performanceRepository) {
+                         SupplierPerformanceRepository performanceRepository,
+                         PharmacyBillItemRepository billItemRepository) {
         this.billRepository = billRepository;
         this.stockRepository = stockRepository;
         this.grnRepository = grnRepository;
         this.invoiceRepository = invoiceRepository;
         this.poRepository = poRepository;
         this.performanceRepository = performanceRepository;
+        this.billItemRepository = billItemRepository;
     }
 
     // ─── SALES REPORTS ─────────────────────────────────────────
 
-    public List<Map<String, Object>> getSalesReport(LocalDateTime from, LocalDateTime to) {
-        return billRepository.findByBillingDateBetween(from, to).stream().map(b -> {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("billNumber", b.getBillNumber());
-            m.put("date", b.getBillingDate());
-            m.put("patient", b.getPatientName());
-            m.put("doctorName", b.getDoctorName());
-            m.put("billType", b.getBillType());
-            m.put("paymentMode", b.getPaymentMode());
-            m.put("subTotal", b.getSubTotal());
-            m.put("discount", b.getDiscountAmount());
-            m.put("tax", b.getTaxAmount());
-            m.put("amount", b.getNetAmount());
-            m.put("status", b.getStatus());
-            return m;
-        }).collect(Collectors.toList());
+    public PageResponse<SalesReportRowDTO> getSalesReport(LocalDateTime from, LocalDateTime to, Pageable pageable) {
+        Page<PharmacyBill> pageResult = billRepository.findByBillingDateBetween(from, to, pageable);
+        List<SalesReportRowDTO> content = pageResult.getContent().stream().map(b -> new SalesReportRowDTO(
+                b.getBillNumber(),
+                b.getBillingDate(),
+                b.getPatientName(),
+                b.getDoctorName(),
+                b.getBillType(),
+                b.getPaymentMode(),
+                b.getSubTotal(),
+                b.getDiscountAmount(),
+                b.getTaxAmount(),
+                b.getNetAmount(),
+                b.getStatus()
+        )).collect(Collectors.toList());
+        return new PageResponse<>(content, pageResult.getTotalElements(), pageResult.getTotalPages(), pageResult.getNumber(), pageResult.getSize());
     }
 
-    public Map<String, Object> getDailySalesSummary(LocalDateTime from, LocalDateTime to) {
+    public DailySalesSummaryDTO getDailySalesSummary(LocalDateTime from, LocalDateTime to) {
         List<PharmacyBill> bills = billRepository.findByBillingDateBetween(from, to);
         BigDecimal totalRevenue = bills.stream().map(b -> nvl(b.getNetAmount())).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal totalTax    = bills.stream().map(b -> nvl(b.getTaxAmount())).reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -65,174 +73,180 @@ public class ReportService {
         long cashBills   = bills.stream().filter(b -> "CASH".equals(b.getBillType()) || "OTC".equals(b.getBillType())).count();
         long creditBills = bills.stream().filter(b -> "CREDIT".equals(b.getBillType())).count();
 
-        Map<String, Object> m = new LinkedHashMap<>();
-        m.put("totalRevenue", totalRevenue);
-        m.put("totalTax", totalTax);
-        m.put("totalDiscount", totalDisc);
-        m.put("netRevenue", totalRevenue.subtract(totalTax));
-        m.put("billCount", bills.size());
-        m.put("cashBills", cashBills);
-        m.put("creditBills", creditBills);
-        m.put("period", from.toLocalDate() + " to " + to.toLocalDate());
-        return m;
+        return new DailySalesSummaryDTO(
+                totalRevenue,
+                totalTax,
+                totalDisc,
+                totalRevenue.subtract(totalTax),
+                bills.size(),
+                cashBills,
+                creditBills,
+                from.toLocalDate() + " to " + to.toLocalDate()
+        );
     }
 
-    public List<Map<String, Object>> getMedicineWiseSales(LocalDateTime from, LocalDateTime to) {
-        List<PharmacyBill> bills = billRepository.findByBillingDateBetweenWithItems(from, to);
-        Map<String, Map<String, Object>> grouped = new LinkedHashMap<>();
-        bills.forEach(b -> b.getItems().forEach(item -> {
-            String name = item.getStock() != null && item.getStock().getMedicine() != null
-                    ? item.getStock().getMedicine().getName() : "Unknown";
-            grouped.computeIfAbsent(name, k -> {
-                Map<String, Object> entry = new LinkedHashMap<>();
-                entry.put("medicine", k);
-                entry.put("unitsSold", 0);
-                entry.put("revenue", BigDecimal.ZERO);
-                entry.put("tax", BigDecimal.ZERO);
-                return entry;
-            });
-            Map<String, Object> entry = grouped.get(name);
-            entry.put("unitsSold", (int) entry.get("unitsSold") + nvlInt(item.getQuantity()));
-            entry.put("revenue", ((BigDecimal) entry.get("revenue")).add(nvl(item.getNetAmount())));
-            entry.put("tax", ((BigDecimal) entry.get("tax")).add(nvl(item.getTaxAmount())));
-        }));
-        return new ArrayList<>(grouped.values());
+    public List<MedicineWiseSaleDTO> getMedicineWiseSales(LocalDateTime from, LocalDateTime to) {
+        return billItemRepository.getMedicineWiseSales(from, to).stream()
+                .map(summary -> new MedicineWiseSaleDTO(
+                        summary.getMedicine(),
+                        summary.getUnitsSold(),
+                        summary.getRevenue(),
+                        summary.getTax()
+                )).collect(Collectors.toList());
     }
 
-    public List<Map<String, Object>> getItemisedSalesRegister(LocalDateTime from, LocalDateTime to) {
+    public List<ItemisedSaleDTO> getItemisedSalesRegister(LocalDateTime from, LocalDateTime to) {
         List<PharmacyBill> bills = billRepository.findByBillingDateBetweenWithItems(from, to);
-        List<Map<String, Object>> rows = new ArrayList<>();
+        List<ItemisedSaleDTO> rows = new ArrayList<>();
         bills.forEach(b -> b.getItems().forEach(item -> {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("billNumber", b.getBillNumber());
-            m.put("date", b.getBillingDate());
-            m.put("patient", b.getPatientName());
-            m.put("doctor", b.getDoctorName());
             String med = item.getStock() != null && item.getStock().getMedicine() != null
                     ? item.getStock().getMedicine().getName() : "—";
-            m.put("medicine", med);
             String hsn = item.getStock() != null && item.getStock().getMedicine() != null
                     ? item.getStock().getMedicine().getHsnCode() : "—";
-            m.put("hsnCode", hsn);
-            m.put("quantity", item.getQuantity());
-            m.put("unitPrice", item.getUnitPrice());
-            m.put("discount", item.getDiscountAmount());
-            m.put("tax", item.getTaxAmount());
-            m.put("netAmount", item.getNetAmount());
-            rows.add(m);
+            
+            rows.add(new ItemisedSaleDTO(
+                    b.getBillNumber(),
+                    b.getBillingDate(),
+                    b.getPatientName(),
+                    b.getDoctorName(),
+                    med,
+                    hsn,
+                    item.getQuantity(),
+                    item.getUnitPrice(),
+                    item.getDiscountAmount(),
+                    item.getTaxAmount(),
+                    item.getNetAmount()
+            ));
         }));
         return rows;
     }
 
-    public List<Map<String, Object>> getCreditSalesReport(LocalDateTime from, LocalDateTime to) {
+    public List<CreditSaleDTO> getCreditSalesReport(LocalDateTime from, LocalDateTime to) {
         List<PharmacyBill> bills = billRepository.findByBillingDateBetween(from, to)
                 .stream().filter(b -> "CREDIT".equals(b.getBillType())).collect(Collectors.toList());
-        return bills.stream().map(b -> {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("billNumber", b.getBillNumber());
-            m.put("date", b.getBillingDate());
-            m.put("patient", b.getPatientName());
-            m.put("netAmount", b.getNetAmount());
-            m.put("paidAmount", b.getPaidAmount());
-            m.put("balanceAmount", b.getBalanceAmount());
-            m.put("status", b.getStatus());
-            return m;
-        }).collect(Collectors.toList());
+        return bills.stream().map(b -> new CreditSaleDTO(
+                b.getBillNumber(),
+                b.getBillingDate(),
+                b.getPatientName(),
+                b.getNetAmount(),
+                b.getPaidAmount(),
+                b.getBalanceAmount(),
+                b.getStatus()
+        )).collect(Collectors.toList());
     }
 
-    public List<Map<String, Object>> getCancelledBillsReport(LocalDateTime from, LocalDateTime to) {
+    public List<CancelledBillDTO> getCancelledBillsReport(LocalDateTime from, LocalDateTime to) {
         return billRepository.findByBillingDateBetween(from, to).stream()
                 .filter(b -> "CANCELLED".equals(b.getStatus()))
-                .map(b -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("billNumber", b.getBillNumber());
-                    m.put("date", b.getBillingDate());
-                    m.put("patient", b.getPatientName());
-                    m.put("amount", b.getNetAmount());
-                    m.put("cancelledBy", b.getCreatedBy());
-                    return m;
-                }).collect(Collectors.toList());
+                .map(b -> new CancelledBillDTO(
+                        b.getBillNumber(),
+                        b.getBillingDate(),
+                        b.getPatientName(),
+                        b.getNetAmount(),
+                        b.getCreatedBy()
+                )).collect(Collectors.toList());
     }
 
     // ─── GST REPORTS ─────────────────────────────────────────────
 
-    public Map<String, Object> getTaxReport(LocalDateTime from, LocalDateTime to) {
+    public TaxReportDTO getTaxReport(LocalDateTime from, LocalDateTime to) {
         List<PharmacyBill> bills = billRepository.findByBillingDateBetween(from, to);
         BigDecimal totalTax    = bills.stream().map(b -> nvl(b.getTaxAmount())).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal totalAmount = bills.stream().map(b -> nvl(b.getNetAmount())).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal cgst = totalTax.divide(BigDecimal.valueOf(2), 2, java.math.RoundingMode.HALF_UP);
         BigDecimal sgst = totalTax.subtract(cgst);
 
-        Map<String, Object> report = new LinkedHashMap<>();
-        report.put("totalTax", totalTax);
-        report.put("cgst", cgst);
-        report.put("sgst", sgst);
-        report.put("igst", BigDecimal.ZERO);
-        report.put("totalAmount", totalAmount);
-        report.put("taxableAmount", totalAmount.subtract(totalTax));
-        report.put("billCount", bills.size());
-        report.put("period", from.toLocalDate() + " to " + to.toLocalDate());
-        return report;
+        return new TaxReportDTO(
+                totalTax,
+                cgst,
+                sgst,
+                BigDecimal.ZERO,
+                totalAmount,
+                totalAmount.subtract(totalTax),
+                bills.size(),
+                from.toLocalDate() + " to " + to.toLocalDate()
+        );
     }
 
-    public List<Map<String, Object>> getGstSalesRegister(LocalDateTime from, LocalDateTime to) {
+    public List<GstSaleRegisterDTO> getGstSalesRegister(LocalDateTime from, LocalDateTime to) {
         return getItemisedSalesRegister(from, to).stream().map(row -> {
-            BigDecimal net = row.get("netAmount") != null ? (BigDecimal) row.get("netAmount") : BigDecimal.ZERO;
-            BigDecimal tax = row.get("tax") != null ? (BigDecimal) row.get("tax") : BigDecimal.ZERO;
+            BigDecimal net = nvl(row.netAmount());
+            BigDecimal tax = nvl(row.tax());
             BigDecimal taxable = net.subtract(tax);
             BigDecimal cgst = tax.divide(BigDecimal.valueOf(2), 2, java.math.RoundingMode.HALF_UP);
-            row.put("taxableValue", taxable);
-            row.put("cgst", cgst);
-            row.put("sgst", tax.subtract(cgst));
-            row.put("igst", BigDecimal.ZERO);
-            row.put("totalGst", tax);
-            return row;
+            
+            return new GstSaleRegisterDTO(
+                    row.billNumber(),
+                    row.date(),
+                    row.patient(),
+                    row.doctor(),
+                    row.medicine(),
+                    row.hsnCode(),
+                    row.quantity(),
+                    row.unitPrice(),
+                    row.discount(),
+                    row.tax(),
+                    row.netAmount(),
+                    taxable,
+                    cgst,
+                    tax.subtract(cgst),
+                    BigDecimal.ZERO,
+                    tax
+            );
         }).collect(Collectors.toList());
     }
 
     // ─── STOCK REPORTS ─────────────────────────────────────────────
 
-    public List<Map<String, Object>> getStockReport() {
-        return stockRepository.findAll().stream().map(s -> {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("medicine", s.getMedicine() != null ? s.getMedicine().getName() : "Unknown");
-            m.put("category", s.getMedicine() != null ? s.getMedicine().getCategory() : "—");
-            m.put("hsnCode", s.getMedicine() != null ? s.getMedicine().getHsnCode() : "—");
-            m.put("batch", s.getBatchNumber());
-            m.put("quantity", s.getQuantityAvailable());
-            m.put("unitPrice", s.getPurchaseRate());
-            m.put("mrp", s.getSellingRate());
-            m.put("expiry", s.getExpiryDate());
-            m.put("supplier", s.getSupplier() != null ? s.getSupplier().getName() : "—");
-            m.put("value", s.getPurchaseRate() != null ? s.getPurchaseRate().multiply(BigDecimal.valueOf(nvlInt(s.getQuantityAvailable()))) : BigDecimal.ZERO);
-            return m;
-        }).collect(Collectors.toList());
+    public PageResponse<StockReportDTO> getStockReport(String search, Pageable pageable) {
+        Page<MedicineStock> pageResult;
+        if (search != null && !search.trim().isEmpty()) {
+            pageResult = stockRepository.findByMedicineNameContainingIgnoreCase(search.trim(), pageable);
+        } else {
+            pageResult = stockRepository.findAll(pageable);
+        }
+        
+        List<StockReportDTO> content = pageResult.getContent().stream().map(s -> new StockReportDTO(
+                s.getMedicine() != null ? s.getMedicine().getName() : "Unknown",
+                s.getMedicine() != null ? s.getMedicine().getCategory() : "—",
+                s.getMedicine() != null ? s.getMedicine().getHsnCode() : "—",
+                s.getBatchNumber(),
+                s.getQuantityAvailable(),
+                s.getPurchaseRate(),
+                s.getSellingRate(),
+                s.getExpiryDate(),
+                s.getSupplier() != null ? s.getSupplier().getName() : "—",
+                s.getPurchaseRate() != null ? s.getPurchaseRate().multiply(BigDecimal.valueOf(nvlInt(s.getQuantityAvailable()))) : BigDecimal.ZERO
+        )).collect(Collectors.toList());
+        return new PageResponse<>(content, pageResult.getTotalElements(), pageResult.getTotalPages(), pageResult.getNumber(), pageResult.getSize());
     }
 
-    public List<Map<String, Object>> getExpiryReport(int days) {
+    public List<ExpiryReportDTO> getExpiryReport(int days) {
         LocalDate threshold = LocalDate.now().plusDays(days);
         LocalDate today = LocalDate.now();
         return stockRepository.findByExpiryDateBefore(threshold).stream()
                 .filter(s -> s.getQuantityAvailable() != null && s.getQuantityAvailable() > 0)
                 .map(s -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("medicine", s.getMedicine() != null ? s.getMedicine().getName() : "Unknown");
-                    m.put("batch", s.getBatchNumber());
-                    m.put("expiry", s.getExpiryDate());
-                    m.put("quantity", s.getQuantityAvailable());
-                    m.put("supplier", s.getSupplier() != null ? s.getSupplier().getName() : "—");
                     int daysLeft = s.getExpiryDate() != null ? (int) (s.getExpiryDate().toEpochDay() - today.toEpochDay()) : 0;
-                    m.put("daysLeft", daysLeft);
-                    m.put("urgency", daysLeft <= 0 ? "EXPIRED" : daysLeft <= 15 ? "CRITICAL" : daysLeft <= 30 ? "WARNING" : "EARLY_ALERT");
-                    return m;
+                    String urgency = daysLeft <= 0 ? "EXPIRED" : daysLeft <= 15 ? "CRITICAL" : daysLeft <= 30 ? "WARNING" : "EARLY_ALERT";
+                    
+                    return new ExpiryReportDTO(
+                            s.getMedicine() != null ? s.getMedicine().getName() : "Unknown",
+                            s.getBatchNumber(),
+                            s.getExpiryDate(),
+                            s.getQuantityAvailable(),
+                            s.getSupplier() != null ? s.getSupplier().getName() : "—",
+                            daysLeft,
+                            urgency
+                    );
                 }).collect(Collectors.toList());
     }
 
-    public List<Map<String, Object>> getSlowMovingStockReport(LocalDateTime from, LocalDateTime to, int threshold) {
-        List<Map<String, Object>> salesData = getMedicineWiseSales(from, to);
+    public List<SlowMovingStockDTO> getSlowMovingStockReport(LocalDateTime from, LocalDateTime to, int threshold) {
+        List<MedicineWiseSaleDTO> salesData = getMedicineWiseSales(from, to);
         Set<String> movingMeds = salesData.stream()
-                .filter(r -> (int) r.get("unitsSold") >= threshold)
-                .map(r -> (String) r.get("medicine"))
+                .filter(r -> r.unitsSold() != null && r.unitsSold() >= threshold)
+                .map(MedicineWiseSaleDTO::medicine)
                 .collect(Collectors.toSet());
 
         return stockRepository.findAll().stream()
@@ -241,68 +255,63 @@ public class ReportService {
                 .filter(name -> !movingMeds.contains(name))
                 .distinct()
                 .map(name -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("medicine", name);
-                    m.put("soldInPeriod", salesData.stream()
-                            .filter(r -> name.equals(r.get("medicine")))
-                            .mapToInt(r -> (int) r.get("unitsSold")).sum());
-                    return m;
+                    int sold = salesData.stream()
+                            .filter(r -> name.equals(r.medicine()))
+                            .mapToInt(r -> r.unitsSold() != null ? r.unitsSold() : 0).sum();
+                    return new SlowMovingStockDTO(name, sold);
                 }).collect(Collectors.toList());
     }
 
     // ─── PURCHASE REPORTS ─────────────────────────────────────────
 
-    public List<Map<String, Object>> getPurchaseRegister(LocalDateTime from, LocalDateTime to) {
+    public List<PurchaseRegisterDTO> getPurchaseRegister(LocalDateTime from, LocalDateTime to) {
         return grnRepository.findAll().stream()
                 .filter(g -> g.getReceivedDate() != null && !g.getReceivedDate().isBefore(from) && !g.getReceivedDate().isAfter(to))
-                .map(g -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("grnNumber", g.getGrnNumber());
-                    m.put("date", g.getReceivedDate());
-                    m.put("supplier", g.getSupplier() != null ? g.getSupplier().getName() : "—");
-                    m.put("invoiceNumber", g.getSupplierInvoiceNumber());
-                    m.put("status", g.getStatus());
-                    m.put("itemCount", g.getItems() != null ? g.getItems().size() : 0);
-                    return m;
-                }).collect(Collectors.toList());
+                .map(g -> new PurchaseRegisterDTO(
+                        g.getGrnNumber(),
+                        g.getReceivedDate() != null ? g.getReceivedDate().toLocalDate() : null,
+                        g.getSupplier() != null ? g.getSupplier().getName() : "—",
+                        g.getSupplierInvoiceNumber(),
+                        g.getStatus(),
+                        g.getItems() != null ? g.getItems().size() : 0
+                )).collect(Collectors.toList());
     }
 
-    public List<Map<String, Object>> getOutstandingPayables() {
+    public List<OutstandingPayableDTO> getOutstandingPayables() {
         LocalDate today = LocalDate.now();
         return invoiceRepository.findAll().stream()
                 .filter(inv -> !"PAID".equals(inv.getStatus()))
                 .map(inv -> {
-                    Map<String, Object> m = new LinkedHashMap<>();
-                    m.put("invoiceNumber", inv.getInvoiceNumber());
-                    m.put("supplier", inv.getSupplier() != null ? inv.getSupplier().getName() : "—");
-                    m.put("totalAmount", inv.getTotalAmount());
-                    m.put("status", inv.getStatus());
                     int daysOld = inv.getInvoiceDate() != null ? (int) (today.toEpochDay() - inv.getInvoiceDate().toEpochDay()) : 0;
-                    m.put("daysOld", daysOld);
-                    m.put("agingBucket", daysOld <= 30 ? "0-30 days" : daysOld <= 60 ? "31-60 days" : "61+ days");
-                    return m;
+                    String agingBucket = daysOld <= 30 ? "0-30 days" : daysOld <= 60 ? "31-60 days" : "61+ days";
+                    
+                    return new OutstandingPayableDTO(
+                            inv.getInvoiceNumber(),
+                            inv.getSupplier() != null ? inv.getSupplier().getName() : "—",
+                            inv.getTotalAmount(),
+                            inv.getStatus(),
+                            daysOld,
+                            agingBucket
+                    );
                 }).collect(Collectors.toList());
     }
 
-    public List<Map<String, Object>> getSupplierPerformanceSummary() {
-        return performanceRepository.findAll().stream().map(p -> {
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("supplier", p.getSupplier() != null ? p.getSupplier().getName() : "—");
-            m.put("overallScore", p.getOverallScore());
-            m.put("onTimeDelivery", p.getOnTimeDeliveryRate());
-            m.put("orderFillRate", p.getOrderFillRate());
-            m.put("qualityRejection", p.getQualityRejectionRate());
-            m.put("invoiceAccuracy", p.getInvoiceAccuracyRate());
-            m.put("periodStart", p.getPeriodStart());
-            m.put("periodEnd", p.getPeriodEnd());
-            return m;
-        }).sorted((a, b) -> {
-            double scoreA = ((Number) a.getOrDefault("overallScore", 0)).doubleValue();
-            double scoreB = ((Number) b.getOrDefault("overallScore", 0)).doubleValue();
+    public List<SupplierPerformanceDTO> getSupplierPerformanceSummary() {
+        return performanceRepository.findAll().stream().map(p -> new SupplierPerformanceDTO(
+                p.getSupplier() != null ? p.getSupplier().getName() : "—",
+                p.getOverallScore(),
+                p.getOnTimeDeliveryRate(),
+                p.getOrderFillRate(),
+                p.getQualityRejectionRate(),
+                p.getInvoiceAccuracyRate(),
+                p.getPeriodStart(),
+                p.getPeriodEnd()
+        )).sorted((a, b) -> {
+            double scoreA = a.overallScore() != null ? a.overallScore() : 0;
+            double scoreB = b.overallScore() != null ? b.overallScore() : 0;
             return Double.compare(scoreB, scoreA);
         }).collect(Collectors.toList());
     }
-
 
     // ─── Helpers ───────────────────────────────────────────────
     private BigDecimal nvl(BigDecimal v) { return v != null ? v : BigDecimal.ZERO; }

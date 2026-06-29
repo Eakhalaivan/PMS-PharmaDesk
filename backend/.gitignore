@@ -33,5 +33,5 @@ build/
 .vscode/
 
 .env
-.env.local
-.env.production
+*.env
+application-local.yml

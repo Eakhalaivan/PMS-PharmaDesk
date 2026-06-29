@@ -10,6 +10,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.PostPersist;
 import java.time.LocalDateTime;
 import java.util.Set;
 
@@ -64,6 +65,13 @@ public class User extends BaseEntity {
 
     @Column(name = "role")
     private String legacyRole;
+
+    @PostPersist
+    public void generateEmployeeId() {
+        if (this.employeeId == null && this.getId() != null) {
+            this.employeeId = "EMP-" + String.format("%06d", this.getId());
+        }
+    }
 
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }

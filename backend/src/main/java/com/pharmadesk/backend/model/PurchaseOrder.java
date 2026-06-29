@@ -6,14 +6,25 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import org.hibernate.annotations.Filter;
+import org.hibernate.annotations.FilterDef;
+import org.hibernate.annotations.ParamDef;
 
 @Entity
 @Table(name = "purchase_orders")
+@FilterDef(name = "branchFilter", parameters = @ParamDef(name = "branchId", type = Long.class))
+@Filter(name = "branchFilter", condition = "branch_id = :branchId")
 public class PurchaseOrder {
 
     @Id
     @Column(name = "po_id", length = 36)
     private String poId = java.util.UUID.randomUUID().toString();
+
+    @Column(name = "branch_id", nullable = false)
+    private Long branchId = 1L;
+
+    public Long getBranchId() { return branchId; }
+    public void setBranchId(Long branchId) { this.branchId = branchId; }
 
     @Column(name = "po_number", nullable = false, unique = true, length = 30)
     private String poNumber;

@@ -1,5 +1,7 @@
 package com.pharmadesk.backend.model;
 
+import com.pharmadesk.backend.sales.model.*;
+
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;

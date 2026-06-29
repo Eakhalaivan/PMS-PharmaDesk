@@ -1,9 +1,10 @@
 package com.pharmadesk.backend.security;
 
 import io.github.bucket4j.Bandwidth;
-import io.github.bucket4j.Bucket;
-import io.github.bucket4j.Bucket4j;
+import io.github.bucket4j.BucketConfiguration;
 import io.github.bucket4j.Refill;
+import io.github.bucket4j.distributed.proxy.ProxyManager;
+import io.github.bucket4j.distributed.BucketProxy;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,33 +15,48 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private final Map<String, Bucket> cache = new ConcurrentHashMap<>();
+    private final ProxyManager<byte[]> proxyManager;
 
-    private Bucket createNewBucket() {
+    public RateLimitFilter(ProxyManager<byte[]> proxyManager) {
+        this.proxyManager = proxyManager;
+    }
+
+    private BucketConfiguration getBucketConfiguration() {
         // Allow 5 login attempts per minute per IP
-        long capacity = 5;
-        Refill refill = Refill.greedy(5, Duration.ofMinutes(1));
-        Bandwidth limit = Bandwidth.classic(capacity, refill);
-        return Bucket4j.builder().addLimit(limit).build();
+        return BucketConfiguration.builder()
+                .addLimit(Bandwidth.classic(5, Refill.greedy(5, Duration.ofMinutes(1))))
+                .build();
+    }
+
+    private String getClientIP(HttpServletRequest request) {
+        String xfHeader = request.getHeader("X-Forwarded-For");
+        if (xfHeader != null && !xfHeader.isEmpty()) {
+            return xfHeader.split(",")[0].trim();
+        }
+        String xrHeader = request.getHeader("X-Real-IP");
+        if (xrHeader != null && !xrHeader.isEmpty()) {
+            return xrHeader.trim();
+        }
+        return request.getRemoteAddr();
     }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        if (request.getRequestURI().startsWith("/api/auth/login")) {
-            String ip = request.getRemoteAddr();
-            Bucket bucket = cache.computeIfAbsent(ip, k -> createNewBucket());
+        if (request.getRequestURI().startsWith("/api/auth/")) {
+            String ip = getClientIP(request);
+            byte[] key = ("rate_limit:" + ip).getBytes();
+            
+            BucketProxy bucket = proxyManager.builder().build(key, this::getBucketConfiguration);
 
             if (bucket.tryConsume(1)) {
                 filterChain.doFilter(request, response);
             } else {
                 response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-                response.getWriter().write("Too many login attempts. Please try again later.");
+                response.getWriter().write("Too many requests. Please try again later.");
             }
             return;
         }

@@ -1,9 +1,11 @@
 package com.pharmadesk.backend.pharmacy.service;
 
 import com.pharmadesk.backend.pharmacy.dto.analytics.*;
-import com.pharmadesk.backend.pharmacy.repository.PharmacyBillRepository;
+import com.pharmadesk.backend.sales.repository.PharmacyBillRepository;
 import com.pharmadesk.backend.pharmacy.repository.MedicineStockRepository;
 import com.pharmadesk.backend.pharmacy.repository.MedicineRepository;
+import com.pharmadesk.backend.sales.repository.MedicineReturnRepository;
+import com.pharmadesk.backend.pharmacy.enums.ReturnStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,15 +28,18 @@ public class AnalyticsService {
     private final PharmacyBillRepository billRepository;
     private final MedicineStockRepository stockRepository;
     private final MedicineRepository medicineRepository;
+    private final MedicineReturnRepository returnRepository;
     private final EntityManager entityManager;
 
     public AnalyticsService(PharmacyBillRepository billRepository, 
                             MedicineStockRepository stockRepository,
                             MedicineRepository medicineRepository,
+                            MedicineReturnRepository returnRepository,
                             EntityManager entityManager) {
         this.billRepository = billRepository;
         this.stockRepository = stockRepository;
         this.medicineRepository = medicineRepository;
+        this.returnRepository = returnRepository;
         this.entityManager = entityManager;
     }
 
@@ -69,10 +74,14 @@ public class AnalyticsService {
             dashboard.setAverageTransactionValue(calculateKPI(currentAvgTxn, prevAvgTxn));
 
             // 5. Total Returns Value
-            dashboard.setTotalReturnsValue(calculateKPI(BigDecimal.ZERO, BigDecimal.ZERO));
+            BigDecimal currentRet = getReturns(startDate, endDate);
+            BigDecimal prevRet = getReturns(prevStartDate, prevEndDate);
+            dashboard.setTotalReturnsValue(calculateKPI(currentRet, prevRet));
 
             // 6. Net Revenue
-            dashboard.setNetRevenue(calculateKPI(currentRev, prevRev));
+            BigDecimal currentNet = currentRev.subtract(currentRet);
+            BigDecimal prevNet = prevRev.subtract(prevRet);
+            dashboard.setNetRevenue(calculateKPI(currentNet, prevNet));
 
             // Fast & Slow Moving
             dashboard.setFastMovingMedicines(getFastMovingMedicines(startDate, endDate, 5));
@@ -98,6 +107,11 @@ public class AnalyticsService {
 
     private BigDecimal getRevenue(LocalDateTime start, LocalDateTime end) {
         BigDecimal sum = billRepository.sumNetAmountByBillingDateBetween(start, end);
+        return sum != null ? sum : BigDecimal.ZERO;
+    }
+
+    private BigDecimal getReturns(LocalDateTime start, LocalDateTime end) {
+        BigDecimal sum = returnRepository.sumTotalReturnAmountByDateAndStatus(start, end, ReturnStatus.APPROVED);
         return sum != null ? sum : BigDecimal.ZERO;
     }
 

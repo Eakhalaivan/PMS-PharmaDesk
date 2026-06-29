@@ -2,6 +2,8 @@ package com.pharmadesk.backend.pharmacy.repository;
 
 import com.pharmadesk.backend.model.MedicineStock;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -31,6 +33,7 @@ public interface MedicineStockRepository extends JpaRepository<MedicineStock, Lo
     List<MedicineStock> findByMedicineNameContainingIgnoreCaseWithMedicineAndSupplier(@Param("name") String name);
 
     List<MedicineStock> findByMedicineNameContainingIgnoreCase(String name);
+    Page<MedicineStock> findByMedicineNameContainingIgnoreCase(String name, org.springframework.data.domain.Pageable pageable);
     List<MedicineStock> findByMedicineId(Long medicineId);
 
     @Query("SELECT SUM(s.quantityAvailable) FROM MedicineStock s WHERE s.medicine.id = :medicineId AND s.deleted = false")

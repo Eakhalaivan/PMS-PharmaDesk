@@ -48,7 +48,9 @@ api.interceptors.response.use(
         // Token expired — clear and redirect to login
         localStorage.clear();
         window.dispatchEvent(new Event('auth:expired'));
-        window.location.href = '/login';
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
     }
     if (error.response?.status === 403) {

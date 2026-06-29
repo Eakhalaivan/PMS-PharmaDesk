@@ -56,7 +56,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 byte[] key = ("rate_limit:" + ip).getBytes();
                 bucket = proxyManager.builder().build(key, this::getBucketConfiguration);
             } else {
-                bucket = localBuckets.computeIfAbsent(ip, k -> getBucketConfiguration().build());
+                bucket = localBuckets.computeIfAbsent(ip, k -> io.github.bucket4j.Bucket.builder()
+                        .addLimit(io.github.bucket4j.Bandwidth.classic(5, io.github.bucket4j.Refill.greedy(5, java.time.Duration.ofMinutes(1))))
+                        .build());
             }
 
             if (bucket.tryConsume(1)) {

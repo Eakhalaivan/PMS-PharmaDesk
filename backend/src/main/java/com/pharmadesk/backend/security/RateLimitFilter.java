@@ -19,10 +19,12 @@ import java.time.Duration;
 @Component
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private final ProxyManager<byte[]> proxyManager;
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    private ProxyManager<byte[]> proxyManager;
 
-    public RateLimitFilter(ProxyManager<byte[]> proxyManager) {
-        this.proxyManager = proxyManager;
+    private final java.util.Map<String, io.github.bucket4j.Bucket> localBuckets = new java.util.concurrent.ConcurrentHashMap<>();
+
+    public RateLimitFilter() {
     }
 
     private BucketConfiguration getBucketConfiguration() {
@@ -48,9 +50,14 @@ public class RateLimitFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
         if (request.getRequestURI().startsWith("/api/auth/")) {
             String ip = getClientIP(request);
-            byte[] key = ("rate_limit:" + ip).getBytes();
             
-            BucketProxy bucket = proxyManager.builder().build(key, this::getBucketConfiguration);
+            io.github.bucket4j.Bucket bucket;
+            if (proxyManager != null) {
+                byte[] key = ("rate_limit:" + ip).getBytes();
+                bucket = proxyManager.builder().build(key, this::getBucketConfiguration);
+            } else {
+                bucket = localBuckets.computeIfAbsent(ip, k -> getBucketConfiguration().build());
+            }
 
             if (bucket.tryConsume(1)) {
                 filterChain.doFilter(request, response);

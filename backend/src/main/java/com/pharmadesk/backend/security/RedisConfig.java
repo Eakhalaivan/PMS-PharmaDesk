@@ -37,8 +37,12 @@ public class RedisConfig {
 
     @Bean
     public ProxyManager<byte[]> proxyManager(RedisClient redisClient) {
-        return LettuceBasedProxyManager.builderFor(redisClient)
-                .build();
+        try {
+            return LettuceBasedProxyManager.builderFor(redisClient).build();
+        } catch (Exception e) {
+            System.err.println("WARNING: Failed to connect to Redis for Rate Limiting. Falling back to local memory. Error: " + e.getMessage());
+            return null; // Return null so the bean isn't registered, letting RateLimitFilter use the local fallback
+        }
     }
 
     @Bean

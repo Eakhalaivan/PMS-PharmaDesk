@@ -125,6 +125,7 @@ public class AuthController {
             data.put("branch",            user.getBranch());
             data.put("roles",             roleNames);
             data.put("mustChangePassword", user.isMustChangePassword());
+            data.put("token",             jwt);
 
             return ResponseEntity.ok(ApiResponse.success(data, "Login successful"));
         } catch (Exception e) {

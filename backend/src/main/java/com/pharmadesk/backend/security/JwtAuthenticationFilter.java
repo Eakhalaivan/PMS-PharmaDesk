@@ -43,10 +43,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String jwt = parseJwt(request);
             if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
                 String jti = jwtUtils.getJtiFromJwtToken(jwt);
-                if (Boolean.TRUE.equals(redisTemplate.hasKey("jwt_blacklist:" + jti))) {
-                    log.warn("JwtAuthFilter: Token has been revoked (blacklisted)");
-                    filterChain.doFilter(request, response);
-                    return;
+                try {
+                    if (Boolean.TRUE.equals(redisTemplate.hasKey("jwt_blacklist:" + jti))) {
+                        log.warn("JwtAuthFilter: Token has been revoked (blacklisted)");
+                        filterChain.doFilter(request, response);
+                        return;
+                    }
+                } catch (Exception redisEx) {
+                    log.warn("Failed to check token blacklist in Redis: {}", redisEx.getMessage());
                 }
 
                 String username = jwtUtils.getUserNameFromJwtToken(jwt);

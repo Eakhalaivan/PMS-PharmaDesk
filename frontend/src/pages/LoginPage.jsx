@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Building2, KeyRound, User as UserIcon, Lock, Loader2, AlertCircle } from 'lucide-react';
+import { Building2, KeyRound, User as UserIcon, Lock, Loader2, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { DASHBOARD_ROUTES } from '../config/roles.config';
 import { useForm } from 'react-hook-form';
@@ -11,6 +11,7 @@ import { loginSchema } from '../schema/validations';
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(''); 
+  const [showPassword, setShowPassword] = useState(false);
 
   const { login, isAuthenticated, activeRole } = useAuth();
   const navigate = useNavigate();
@@ -100,14 +101,23 @@ export default function LoginPage() {
             </div>
             <input
               id="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               autoComplete="current-password"
-              className={`block w-full pl-12 pr-4 py-4 bg-gray-50 border rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent transition-all sm:text-sm ${
+              className={`block w-full pl-12 pr-12 py-4 bg-gray-50 border rounded-xl text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-primary focus:border-transparent transition-all sm:text-sm ${
                 (errors.password || error) ? 'border-red-400 bg-red-50' : 'border-gray-200'
               }`}
               placeholder="Password"
               {...register('password')}
             />
+            <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-gray-400 hover:text-gray-600 focus:outline-none"
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
+            </div>
           </div>
           {errors.password && (
             <p className="text-red-500 text-xs font-medium pl-2">{errors.password.message}</p>

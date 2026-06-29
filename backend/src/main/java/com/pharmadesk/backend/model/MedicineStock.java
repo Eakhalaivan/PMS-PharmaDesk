@@ -21,7 +21,7 @@ public class MedicineStock extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "medicine_id", nullable = false)
-    @JsonBackReference
+    @com.fasterxml.jackson.annotation.JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
     private Medicine medicine;
 
     @Column(name = "branch_id", nullable = false)

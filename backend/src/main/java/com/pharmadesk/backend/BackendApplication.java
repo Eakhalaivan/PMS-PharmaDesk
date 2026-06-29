@@ -8,7 +8,7 @@ import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
-@SpringBootApplication
+@SpringBootApplication(exclude = {io.sentry.spring.boot.jakarta.SentryAutoConfiguration.class})
 @EnableScheduling
 @EnableCaching
 @EnableAsync

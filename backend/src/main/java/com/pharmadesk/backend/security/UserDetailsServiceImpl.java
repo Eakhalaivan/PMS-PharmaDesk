@@ -42,9 +42,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         // Users with no roles get NO access (not pharmacy staff access)
         if (authorities.isEmpty()) {
             // Return enabled=false so login is rejected cleanly with "Bad credentials"
-            return new org.springframework.security.core.userdetails.User(
-                    user.getUsername(),
-                    user.getPasswordHash(),
+            return new CustomUserDetails(
+                    user,
                     false,        // enabled
                     true,         // accountNonExpired
                     true,         // credentialsNonExpired
@@ -53,9 +52,8 @@ public class UserDetailsServiceImpl implements UserDetailsService {
             );
         }
 
-        return new org.springframework.security.core.userdetails.User(
-                user.getUsername(),
-                user.getPasswordHash(),
+        return new CustomUserDetails(
+                user,
                 accountEnabled,   // enabled — false = login rejected for SUSPENDED/INACTIVE
                 true,             // accountNonExpired
                 true,             // credentialsNonExpired

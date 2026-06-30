@@ -19,6 +19,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.GrantedAuthority;
+import com.pharmadesk.backend.security.CustomUserDetails;
+import java.util.concurrent.CompletableFuture;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -106,11 +108,17 @@ public class AuthController {
                     .build();
             response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
 
-            User user = userRepository.findByUsername(loginRequest.getUsername())
-                    .orElseThrow(() -> new RuntimeException("User not found"));
+            CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+            User user = userDetails.getUser();
 
-            user.setLastLogin(LocalDateTime.now());
-            userRepository.save(user);
+            CompletableFuture.runAsync(() -> {
+                try {
+                    userRepository.updateLastLogin(user.getId(), LocalDateTime.now());
+                } catch (Exception e) {
+                    // Log error if async update fails
+                    e.printStackTrace();
+                }
+            });
 
             List<String> roleNames = authentication.getAuthorities().stream()
                     .map(GrantedAuthority::getAuthority)

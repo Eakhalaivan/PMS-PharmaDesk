@@ -17,4 +17,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     java.util.List<User> findByStatus(String status);
 
     java.util.List<User> findAllByDeletedFalse();
+
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("UPDATE User u SET u.lastLogin = :lastLogin WHERE u.id = :id")
+    void updateLastLogin(@org.springframework.data.repository.query.Param("id") Long id, @org.springframework.data.repository.query.Param("lastLogin") java.time.LocalDateTime lastLogin);
 }

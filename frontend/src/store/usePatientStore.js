@@ -3,33 +3,36 @@ import { toast } from 'react-hot-toast';
 import pharmacyService from '../utils/pharmacyService';
 
 const DEBOUNCE_MS = 400;
+let searchTimer = null;
+let abortController = null;
 
 export const usePatientStore = create((set, get) => ({
   patients: [],
   loading: false,
   error: null,
   searchTerm: '',
-  _searchTimer: null,
 
   setSearch: (searchTerm) => {
     set({ searchTerm });
-    const prev = get()._searchTimer;
-    if (prev) clearTimeout(prev);
-    const timer = setTimeout(() => get().fetchPatients(), DEBOUNCE_MS);
-    set({ _searchTimer: timer });
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => get().fetchPatients(), DEBOUNCE_MS);
   },
 
   fetchPatients: async () => {
+    if (abortController) abortController.abort();
+    const ctrl = new AbortController();
+    abortController = ctrl;
+
     set({ loading: true, error: null });
     try {
       const res = await pharmacyService.getPatients();
+      if (ctrl.signal.aborted) return;
       const list = res?.data ?? res ?? [];
-      set({ patients: Array.isArray(list) ? list : [] });
+      set({ patients: Array.isArray(list) ? list : [], loading: false });
     } catch {
-      set({ error: 'Failed to load patients' });
+      if (ctrl.signal.aborted) return;
+      set({ error: 'Failed to load patients', loading: false });
       toast.error('Failed to fetch patients');
-    } finally {
-      set({ loading: false });
     }
   },
 
@@ -73,15 +76,5 @@ export const usePatientStore = create((set, get) => ({
       toast.error('Failed to delete patient');
     }
     return false;
-  },
-
-  filteredPatients: () => {
-    const { patients, searchTerm } = get();
-    if (!searchTerm) return patients;
-    const s = searchTerm.toLowerCase();
-    return patients.filter(p => 
-      p.name?.toLowerCase().includes(s) || 
-      p.uhid?.toLowerCase().includes(s)
-    );
-  },
+  }
 }));

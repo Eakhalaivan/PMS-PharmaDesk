@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import {
   Plus, Search, Truck, Trash2, Edit3, Eye, FileText, Star, TrendingUp,
   Phone, MapPin, CreditCard, User, Building2, Shield, ChevronRight,
@@ -451,9 +452,24 @@ function SupplierProfile({ supplier, onClose, onEdit, onCreatePO }) {
 // ══════════════════════════════════════════════════════════════
 export default function Suppliers() {
   const {
-    suppliers, loading, searchTerm, filteredSuppliers,
-    setSearch, fetchSuppliers, createSupplier, updateSupplier, deleteSupplier
-  } = useSupplierStore();
+    suppliers,
+    loading,
+    searchTerm,
+    setSearch,
+    fetchSuppliers,
+    createSupplier,
+    updateSupplier,
+    deleteSupplier
+  } = useSupplierStore(useShallow(state => ({
+    suppliers: state.suppliers,
+    loading: state.loading,
+    searchTerm: state.searchTerm,
+    setSearch: state.setSearch,
+    fetchSuppliers: state.fetchSuppliers,
+    createSupplier: state.createSupplier,
+    updateSupplier: state.updateSupplier,
+    deleteSupplier: state.deleteSupplier
+  })));
 
   const [view, setView] = useState('list'); // list | grn | invoice | returns
   const [filterType, setFilterType] = useState('');
@@ -481,11 +497,18 @@ export default function Suppliers() {
   const openAdd = () => { setIsEditMode(false); setSelectedSupplier(null); setIsModalOpen(true); };
   const openEdit = (s) => { setIsEditMode(true); setSelectedSupplier(s); setIsModalOpen(true); setProfileSupplier(null); };
 
-  const filtered = filteredSuppliers().filter(s => {
-    const matchType = !filterType || s.supplierType === filterType;
-    const matchStatus = !filterStatus || s.status === filterStatus;
-    return matchType && matchStatus;
-  });
+  const filtered = useMemo(() => {
+    const list = suppliers || [];
+    return list.filter(s => {
+      const matchSearch = !searchTerm || 
+        (s.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (s.supplierCode?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (s.gstin?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+      const matchType = !filterType || s.supplierType === filterType;
+      const matchStatus = !filterStatus || s.status === filterStatus;
+      return matchSearch && matchType && matchStatus;
+    });
+  }, [suppliers, searchTerm, filterType, filterStatus]);
 
   // Sub-view routing
   if (view === 'grn') return <GRNEntry onBack={() => setView('list')} />;

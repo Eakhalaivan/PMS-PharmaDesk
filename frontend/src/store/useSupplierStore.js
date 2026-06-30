@@ -3,6 +3,8 @@ import { toast } from 'react-hot-toast';
 import pharmacyService from '../utils/pharmacyService';
 
 const DEBOUNCE_MS = 400;
+let searchTimer = null;
+let abortController = null;
 
 export const useSupplierStore = create((set, get) => ({
   suppliers: [],
@@ -11,14 +13,11 @@ export const useSupplierStore = create((set, get) => ({
   searchTerm: '',
   filterType: '',
   filterStatus: '',
-  _searchTimer: null,
 
   setSearch: (searchTerm) => {
     set({ searchTerm });
-    const prev = get()._searchTimer;
-    if (prev) clearTimeout(prev);
-    const timer = setTimeout(() => get().fetchSuppliers(), DEBOUNCE_MS);
-    set({ _searchTimer: timer });
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => get().fetchSuppliers(), DEBOUNCE_MS);
   },
 
   setFilterType: (filterType) => {
@@ -33,6 +32,10 @@ export const useSupplierStore = create((set, get) => ({
 
   fetchSuppliers: async () => {
     const { searchTerm, filterType, filterStatus } = get();
+    if (abortController) abortController.abort();
+    const ctrl = new AbortController();
+    abortController = ctrl;
+
     set({ loading: true, error: null });
     try {
       const res = await pharmacyService.getSuppliers({
@@ -40,13 +43,13 @@ export const useSupplierStore = create((set, get) => ({
         type: filterType || undefined,
         status: filterStatus || undefined,
       });
+      if (ctrl.signal.aborted) return;
       const list = res?.data?.content ?? res?.data ?? res ?? [];
-      set({ suppliers: Array.isArray(list) ? list : [] });
+      set({ suppliers: Array.isArray(list) ? list : [], loading: false });
     } catch {
-      set({ error: 'Failed to load suppliers' });
+      if (ctrl.signal.aborted) return;
+      set({ error: 'Failed to load suppliers', loading: false });
       toast.error('Failed to load suppliers');
-    } finally {
-      set({ loading: false });
     }
   },
 
@@ -91,10 +94,4 @@ export const useSupplierStore = create((set, get) => ({
     }
     return false;
   },
-
-  // Missing in instructions, but used in component
-  filteredSuppliers: () => {
-      // Component filters it itself now
-      return get().suppliers;
-  }
 }));

@@ -46,54 +46,6 @@ export function AuthProvider({ children }) {
 
   // On mount, restore from localStorage
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userStr = localStorage.getItem('user');
-    const rolesStr = localStorage.getItem('roles');
-    const activeRoleStr = localStorage.getItem('activeRole');
-    const mustChangePasswordStr = localStorage.getItem('mustChangePassword');
-
-    if (token && userStr) {
-      try {
-        const parsedUser = JSON.parse(userStr);
-        const parsedRoles = rolesStr ? JSON.parse(rolesStr) : [];
-        
-        // Map restored roles to ensure they don't contain ROLE_ or legacy names
-        const legacyMap = {
-          'ADMIN':         'SYSTEM_ADMIN',
-          'MEDICINE_USER': 'PHARMACY_STAFF',
-          'BILLING_USER':  'BILLING_STAFF',
-          'PURCHASE_USER': 'STOREKEEPER',
-          'ADMIN_USER':    'SYSTEM_ADMIN',
-        };
-        const mapRole = (r) => {
-          if (typeof r !== 'string') return r;
-          const stripped = r.replace(/^ROLE_/, '');
-          return legacyMap[stripped] || stripped;
-        };
-
-        const finalRoles = parsedRoles.length > 0 ? parsedRoles.map(mapRole) : ['SYSTEM_ADMIN'];
-        let finalActiveRole = activeRoleStr ? mapRole(activeRoleStr) : (finalRoles[0] || 'SYSTEM_ADMIN');
-
-        // Re-attach roles to user object for components that read user.roles
-        const userWithRoles = { ...parsedUser, roles: finalRoles };
-
-        setAuthState({
-          user: userWithRoles,
-          roles: finalRoles,
-          activeRole: finalActiveRole,
-          mustChangePassword: mustChangePasswordStr === 'true',
-          isAuthenticated: true,
-          loading: false
-        });
-        return; // Skip the default setLoading(false)
-      } catch (e) {
-        console.error("AuthContext: Restoration failed", e);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('roles');
-        localStorage.removeItem('activeRole');
-      }
-    }
     // Listen for global auth:expired event from api.js
     const handleAuthExpired = () => {
       setAuthState({
@@ -107,7 +59,60 @@ export function AuthProvider({ children }) {
     };
     window.addEventListener('auth:expired', handleAuthExpired);
 
-    setAuthState(prev => ({ ...prev, loading: false }));
+    const checkAuth = () => {
+      const token = localStorage.getItem('token');
+      const userStr = localStorage.getItem('user');
+      const rolesStr = localStorage.getItem('roles');
+      const activeRoleStr = localStorage.getItem('activeRole');
+      const mustChangePasswordStr = localStorage.getItem('mustChangePassword');
+
+      if (token && userStr) {
+        try {
+          const parsedUser = JSON.parse(userStr);
+          const parsedRoles = rolesStr ? JSON.parse(rolesStr) : [];
+          
+          // Map restored roles to ensure they don't contain ROLE_ or legacy names
+          const legacyMap = {
+            'ADMIN':         'SYSTEM_ADMIN',
+            'MEDICINE_USER': 'PHARMACY_STAFF',
+            'BILLING_USER':  'BILLING_STAFF',
+            'PURCHASE_USER': 'STOREKEEPER',
+            'ADMIN_USER':    'SYSTEM_ADMIN',
+          };
+          const mapRole = (r) => {
+            if (typeof r !== 'string') return r;
+            const stripped = r.replace(/^ROLE_/, '');
+            return legacyMap[stripped] || stripped;
+          };
+
+          const finalRoles = parsedRoles.length > 0 ? parsedRoles.map(mapRole) : ['SYSTEM_ADMIN'];
+          let finalActiveRole = activeRoleStr ? mapRole(activeRoleStr) : (finalRoles[0] || 'SYSTEM_ADMIN');
+
+          // Re-attach roles to user object for components that read user.roles
+          const userWithRoles = { ...parsedUser, roles: finalRoles };
+
+          setAuthState({
+            user: userWithRoles,
+            roles: finalRoles,
+            activeRole: finalActiveRole,
+            mustChangePassword: mustChangePasswordStr === 'true',
+            isAuthenticated: true,
+            loading: false
+          });
+          return; // Skip the default setLoading(false)
+        } catch (e) {
+          console.error("AuthContext: Restoration failed", e);
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('roles');
+          localStorage.removeItem('activeRole');
+        }
+      }
+
+      setAuthState(prev => ({ ...prev, loading: false }));
+    };
+
+    checkAuth();
 
     return () => {
       window.removeEventListener('auth:expired', handleAuthExpired);

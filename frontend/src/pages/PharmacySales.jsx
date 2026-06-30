@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Eye, Printer, XCircle, Trash2, PlusCircle, Barcode } from 'lucide-react';
+import { Search, Plus, Eye, Printer, XCircle, Trash2, PlusCircle, Barcode, CheckCircle } from 'lucide-react';
 import ModuleFilterBar from '../components/ui/ModuleFilterBar';
 import DataTable from '../components/ui/DataTable';
 import Pagination from '../components/ui/Pagination';
@@ -8,7 +8,9 @@ import Badge from '../components/ui/Badge';
 import { toast } from 'react-hot-toast';
 import pharmacyService from '../utils/pharmacyService';
 import PharmacyInvoice from '../components/pharmacy/PharmacyInvoice';
-import { useSalesStore } from '../store/useSalesStore';
+import { usePharmacySalesStore } from '../store/usePharmacySalesStore';
+import { usePOSStore } from '../store/usePOSStore';
+import { useShallow } from 'zustand/react/shallow';
 import TableSkeleton from '../components/ui/TableSkeleton';
 import ErrorBanner from '../components/ui/ErrorBanner';
 
@@ -17,7 +19,36 @@ export default function PharmacySales() {
     salesList, salesLoading: isLoading, salesError: isError, salesPage: page, 
     salesTotalElements: totalElements, salesSearchTerm: searchTerm, salesDateRange: dateRange,
     setSalesSearch, setSalesDateRange, setSalesPage, fetchSales
-  } = useSalesStore();
+  } = usePharmacySalesStore(useShallow(state => ({
+    salesList: state.salesList,
+    salesLoading: state.salesLoading,
+    salesError: state.salesError,
+    salesPage: state.salesPage,
+    salesTotalElements: state.salesTotalElements,
+    salesSearchTerm: state.salesSearchTerm,
+    salesDateRange: state.salesDateRange,
+    setSalesSearch: state.setSalesSearch,
+    setSalesDateRange: state.setSalesDateRange,
+    setSalesPage: state.setSalesPage,
+    fetchSales: state.fetchSales
+  })));
+
+  const posStore = usePOSStore(useShallow(state => ({
+    patientName: state.patientName,
+    doctor: state.doctor,
+    paymentType: state.paymentType,
+    rows: state.rows,
+    patientSearchResults: state.patientSearchResults,
+    setField: state.setField,
+    resetForm: state.resetForm,
+    addRow: state.addRow,
+    removeRow: state.removeRow,
+    searchPatients: state.searchPatients,
+    selectPatient: state.selectPatient,
+    handleNameChange: state.handleNameChange,
+    selectStock: state.selectStock,
+    updateQty: state.updateQty
+  })));
 
   useEffect(() => {
     fetchSales();
@@ -28,69 +59,7 @@ export default function PharmacySales() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [billToDelete, setBillToDelete] = useState(null);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
-  const [searchResults, setSearchResults] = useState([]);
-  const [activeSearchIdx, setActiveSearchIdx] = useState(null);
-  const [patientName, setPatientName] = useState('');
-  const [patientId, setPatientId] = useState(null);
-  const [patientSearchResults, setPatientSearchResults] = useState([]);
-  const [doctorName, setDoctorName] = useState('');
-  const [paymentMode, setPaymentMode] = useState('CASH');
-  
   const [barcodeInput, setBarcodeInput] = useState('');
-
-  const [salesItems, setSalesItems] = useState([
-    { id: 1, stockId: null, name: '', batch: '', expiry: '', qty: 1, rate: 0, gstPercent: 0, gstAmount: 0, amount: 0 }
-  ]);
-
-  const handleStockSearch = async (val, idx) => {
-    if (val.length < 2) {
-      setSearchResults([]);
-      setActiveSearchIdx(null);
-      return;
-    }
-    setActiveSearchIdx(idx);
-    try {
-      const response = await pharmacyService.searchStocks(val);
-      const results = response?.data || response || [];
-      setSearchResults(results);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
-  const selectStock = (stock, idx) => {
-    const newItems = [...salesItems];
-    const rate = Number(stock.sellingRate) || 0;
-    const qty = newItems[idx].qty || 1;
-    const gstPercent = Number(stock.medicine?.taxPercentage || stock.medicine?.gstPercent || 0);
-    const baseAmount = rate * qty;
-    const gstAmount = parseFloat(((baseAmount * gstPercent) / 100).toFixed(2));
-    newItems[idx] = {
-      ...newItems[idx],
-      stockId: stock.id,
-      name: stock.medicine?.name || '',
-      batch: stock.batchNumber || '',
-      expiry: stock.expiryDate || '',
-      rate,
-      gstPercent,
-      gstAmount,
-      amount: parseFloat((baseAmount + gstAmount).toFixed(2))
-    };
-    setSalesItems(newItems);
-    setSearchResults([]);
-    setActiveSearchIdx(null);
-  };
-
-  const updateQty = (qty, idx) => {
-    const newItems = [...salesItems];
-    const q = parseInt(qty) || 0;
-    const baseAmount = newItems[idx].rate * q;
-    const gstAmount = parseFloat(((baseAmount * newItems[idx].gstPercent) / 100).toFixed(2));
-    newItems[idx].qty = q;
-    newItems[idx].gstAmount = gstAmount;
-    newItems[idx].amount = parseFloat((baseAmount + gstAmount).toFixed(2));
-    setSalesItems(newItems);
-  };
 
   const handleBarcodeScan = async (e) => {
     if (e.key === 'Enter' && barcodeInput) {
@@ -98,17 +67,17 @@ export default function PharmacySales() {
         const response = await pharmacyService.getStockByBarcode(barcodeInput);
         if (response && response.success) {
           const stock = response.data;
-          const existingIdx = salesItems.findIndex(item => item.stockId === stock.id);
+          const existingIdx = posStore.rows.findIndex(item => item.stockId === stock.id);
           if (existingIdx > -1) {
-            updateQty(salesItems[existingIdx].qty + 1, existingIdx);
+            posStore.updateQty(existingIdx, Number(posStore.rows[existingIdx].qty || 0) + 1);
           } else {
-            const emptyIdx = salesItems.findIndex(item => !item.stockId);
+            const emptyIdx = posStore.rows.findIndex(item => !item.stockId);
             if (emptyIdx > -1) {
-              selectStock(stock, emptyIdx);
+              posStore.selectStock(emptyIdx, stock);
             } else {
-              const newIdx = salesItems.length;
-              setSalesItems([...salesItems, { id: Date.now(), stockId: null, name: '', batch: '', expiry: '', qty: 1, rate: 0, gstPercent: 0, gstAmount: 0, amount: 0 }]);
-              setTimeout(() => selectStock(stock, newIdx), 0);
+              posStore.addRow();
+              const newIdx = posStore.rows.length;
+              setTimeout(() => posStore.selectStock(newIdx, stock), 0);
             }
           }
           setBarcodeInput('');
@@ -122,20 +91,31 @@ export default function PharmacySales() {
     }
   };
 
+  const calculateSubtotal = () => posStore.rows.reduce((acc, row) => acc + ((Number(row.rate) || 0) * (Number(row.qty) || 0)), 0);
+  const calculateGST = () => posStore.rows.reduce((acc, row) => acc + (((Number(row.rate) || 0) * (Number(row.qty) || 0) * (Number(row.gst) || 0)) / 100), 0);
+  const calculateNet = () => posStore.rows.reduce((acc, row) => acc + (row.amount || 0), 0);
+
   const saveBill = async (options = { shouldPrint: false }) => {
-    if (!patientName) { toast.error('Please enter patient name'); return; }
-    const validItems = salesItems.filter(i => i.stockId && i.qty > 0);
+    if (!posStore.patientName) { toast.error('Please enter patient name'); return; }
+    const validItems = posStore.rows.filter(i => i.stockId && (Number(i.qty) > 0));
     if (validItems.length === 0) { toast.error('Add at least one medicine'); return; }
 
+    const paymentMode = posStore.paymentType === 'ADVANCE' ? 'CASH' : posStore.paymentType;
+    const amountPaid = posStore.paymentType === 'ADVANCE' ? 0 : calculateNet();
+
     const payload = {
-      patientName,
-      patientId,
-      doctorName,
-      items: validItems.map(item => ({ stockId: item.stockId, quantity: item.qty })),
-      paymentMode: paymentMode === 'ADVANCE' ? 'CASH' : paymentMode,
+      patientName: posStore.patientName,
+      doctorName: posStore.doctor,
+      items: validItems.map(item => ({ 
+        stockId: item.stockId, 
+        quantity: Number(item.qty),
+        unitPrice: Number(item.rate),
+        gstPercent: Number(item.gst)
+      })),
+      paymentMode,
       discountAmount: 0,
-      amountPaid: paymentMode === 'ADVANCE' ? 0 : calculateNet(),
-      useAdvance: paymentMode === 'ADVANCE'
+      amountPaid,
+      useAdvance: posStore.paymentType === 'ADVANCE'
     };
 
     try {
@@ -143,7 +123,7 @@ export default function PharmacySales() {
       if (response) {
         toast.success('Bill saved successfully!');
         setIsModalOpen(false);
-        resetModal();
+        posStore.resetForm();
         fetchSales();
         if (options.shouldPrint) {
           const billData = response.data || response;
@@ -171,19 +151,6 @@ export default function PharmacySales() {
       toast.error(error.response?.data?.message || 'Failed to cancel bill');
     }
   };
-
-  const resetModal = () => {
-    setPatientName('');
-    setPatientId(null);
-    setPatientSearchResults([]);
-    setDoctorName('');
-    setPaymentMode('CASH');
-    setSalesItems([{ id: 1, stockId: null, name: '', batch: '', expiry: '', qty: 1, rate: 0, gstPercent: 0, gstAmount: 0, amount: 0 }]);
-  };
-
-  const calculateSubtotal = () => salesItems.reduce((acc, item) => acc + (item.rate * item.qty), 0);
-  const calculateGST = () => salesItems.reduce((acc, item) => acc + (item.gstAmount || 0), 0);
-  const calculateNet = () => salesItems.reduce((acc, item) => acc + (item.amount || 0), 0);
 
   const columns = [
     { header: 'S.No', render: (_, i) => (page * 20) + i + 1 },
@@ -262,19 +229,19 @@ export default function PharmacySales() {
       {/* New Sale Modal */}
       <AppModal
         isOpen={isModalOpen}
-        onClose={() => { setIsModalOpen(false); resetModal(); }}
+        onClose={() => { setIsModalOpen(false); posStore.resetForm(); }}
         title="Create New Pharmacy Sale"
         maxWidth="sm:max-w-6xl"
         footer={
           <div className="flex justify-between items-center w-full">
-            <button onClick={() => { setIsModalOpen(false); resetModal(); }} className="px-6 py-2 border border-gray-200 rounded-xl text-sm font-bold text-gray-500 flex items-center gap-2">
+            <button onClick={() => { setIsModalOpen(false); posStore.resetForm(); }} className="px-6 py-2 border border-gray-200 rounded-xl text-sm font-bold text-gray-500 flex items-center gap-2 hover:bg-gray-50 transition-all">
               <XCircle className="w-4 h-4" /> Cancel
             </button>
             <div className="flex gap-3">
-              <button onClick={() => saveBill({ shouldPrint: false })} className="px-6 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600">
+              <button onClick={() => saveBill({ shouldPrint: false })} className="px-6 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
                 Save Only
               </button>
-              <button onClick={() => saveBill({ shouldPrint: true })} className="px-8 py-2 bg-primary text-white rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-primary/20">
+              <button onClick={() => saveBill({ shouldPrint: true })} className="px-8 py-2 bg-primary text-white rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-primary/20 hover:bg-blue-700 transition-all">
                 <Printer className="w-4 h-4" /> Save & Print Bill
               </button>
             </div>
@@ -290,22 +257,18 @@ export default function PharmacySales() {
                 <input
                   type="text"
                   placeholder="Search Patient..."
-                  value={patientName}
+                  value={posStore.patientName}
                   onChange={(e) => {
-                    setPatientName(e.target.value);
-                    if (e.target.value.length >= 2) {
-                      pharmacyService.searchPatients(e.target.value).then(res => setPatientSearchResults(res.data || []));
-                    } else {
-                      setPatientSearchResults([]);
-                    }
+                    posStore.setField('patientName', e.target.value);
+                    posStore.searchPatients(e.target.value);
                   }}
                   className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 outline-none"
                 />
                 <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-400" />
-                {patientSearchResults.length > 0 && (
+                {posStore.patientSearchResults.length > 0 && (
                   <div className="absolute z-[60] left-0 top-full mt-1 w-full bg-white shadow-2xl border border-blue-100 rounded-xl overflow-hidden">
-                    {patientSearchResults.map(p => (
-                      <div key={p.id} onClick={() => { setPatientName(p.name); setPatientId(p.id); setPatientSearchResults([]); }} className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b">
+                    {posStore.patientSearchResults.map(p => (
+                      <div key={p.id} onClick={() => { posStore.selectPatient(p); }} className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b">
                         <div className="font-bold text-slate-800">{p.name}</div>
                         <div className="text-[10px] text-slate-500 uppercase">UHID: {p.uhid} | PHONE: {p.phone}</div>
                       </div>
@@ -316,7 +279,13 @@ export default function PharmacySales() {
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Doctor Name</label>
-              <input type="text" value={doctorName} onChange={(e) => setDoctorName(e.target.value)} placeholder="Doctor name..." className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none" />
+              <input 
+                type="text" 
+                value={posStore.doctor} 
+                onChange={(e) => posStore.setField('doctor', e.target.value)} 
+                placeholder="Doctor name..." 
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none" 
+              />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Ward / OPD</label>
@@ -342,7 +311,7 @@ export default function PharmacySales() {
           <div className="border border-gray-100 rounded-2xl overflow-visible shadow-sm">
             <div className="overflow-visible">
               <table className="w-full text-sm">
-                <thead className="bg-slate-800 text-white text-[11px] uppercase tracking-widest">
+                <thead className="bg-[#1e293b] text-white text-[11px] uppercase tracking-widest">
                   <tr>
                     <th className="px-4 py-3 text-left">Medicine Name</th>
                     <th className="px-4 py-3 text-left">Batch</th>
@@ -354,42 +323,41 @@ export default function PharmacySales() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {salesItems.map((item, idx) => (
+                  {posStore.rows.map((item, idx) => (
                     <tr key={item.id} className="hover:bg-slate-50/50">
                       <td className="px-4 py-3 relative">
                         <input
                           type="text"
                           placeholder="Search medicine..."
-                          value={item.name}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            const newItems = [...salesItems];
-                            newItems[idx].name = val;
-                            setSalesItems(newItems);
-                            handleStockSearch(val, idx);
-                          }}
+                          value={item.codeName}
+                          onChange={(e) => posStore.handleNameChange(idx, e.target.value)}
                           className="w-full bg-transparent outline-none font-medium"
                         />
-                        {searchResults.length > 0 && activeSearchIdx === idx && item.name.length > 1 && (
-                          <div className="absolute z-50 left-0 top-full mt-1 w-80 bg-white shadow-2xl border border-blue-100 rounded-xl overflow-hidden">
-                            {searchResults.map((stock) => (
-                              <div key={stock.id} onClick={() => selectStock(stock, idx)} className="px-4 py-3 hover:bg-blue-600 hover:text-white cursor-pointer border-b">
-                                <div className="font-bold">{stock.medicine?.name}</div>
+                        {item.searchResults?.length > 0 && item.codeName.length > 1 && (
+                          <div className="absolute z-[70] left-0 top-full mt-1 w-80 bg-white shadow-2xl border border-blue-100 rounded-xl overflow-hidden">
+                            {item.searchResults.map((stock) => (
+                              <div key={stock.id} onClick={() => posStore.selectStock(idx, stock)} className="px-4 py-3 hover:bg-blue-600 hover:text-white cursor-pointer border-b group">
+                                <div className="font-bold group-hover:text-white">{stock.medicine?.name}</div>
                                 <div className="text-[10px] opacity-70">BATCH: {stock.batchNumber} | STOCK: {stock.quantityAvailable}</div>
                               </div>
                             ))}
                           </div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-500 uppercase">{item.batch || '-'}</td>
+                      <td className="px-4 py-3 text-slate-500 uppercase">{item.batchNo || '-'}</td>
                       <td className="px-4 py-3">
-                        <input type="number" value={item.qty} onChange={(e) => updateQty(e.target.value, idx)} className="w-full text-center border rounded-lg py-1" />
+                        <input 
+                          type="number" 
+                          value={item.qty} 
+                          onChange={(e) => posStore.updateQty(idx, e.target.value)} 
+                          className="w-full text-center border rounded-lg py-1" 
+                        />
                       </td>
                       <td className="px-4 py-3 text-right">₹{Number(item.rate).toFixed(2)}</td>
-                      <td className="px-4 py-3 text-center">{item.gstPercent}%</td>
+                      <td className="px-4 py-3 text-center">{item.gst}%</td>
                       <td className="px-4 py-3 text-right font-bold">₹{Number(item.amount).toFixed(2)}</td>
                       <td className="px-4 py-3 text-center">
-                        <button onClick={() => setSalesItems(salesItems.filter(s => s.id !== item.id))} className="text-slate-300 hover:text-red-500">
+                        <button onClick={() => posStore.removeRow(idx)} className="text-slate-300 hover:text-red-500">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </td>
@@ -398,7 +366,7 @@ export default function PharmacySales() {
                 </tbody>
               </table>
             </div>
-            <button onClick={() => setSalesItems([...salesItems, { id: Date.now(), stockId: null, name: '', batch: '', expiry: '', qty: 1, rate: 0, gstPercent: 0, gstAmount: 0, amount: 0 }])} className="w-full py-3 bg-slate-50 text-primary text-xs font-bold uppercase tracking-widest border-t">
+            <button onClick={() => posStore.addRow()} className="w-full py-3 bg-slate-50 text-primary text-xs font-bold uppercase tracking-widest border-t hover:bg-slate-100 transition-all">
               + Add Medicine Row
             </button>
           </div>
@@ -407,25 +375,29 @@ export default function PharmacySales() {
           <div className="flex flex-col md:flex-row gap-8 items-start justify-between p-6 bg-slate-50 rounded-2xl border border-slate-100">
             <div className="flex-1 space-y-4">
               <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Payment Mode</label>
-              <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value)} className="w-full max-w-xs px-4 py-2.5 rounded-xl border outline-none">
-                <option value="CASH">Cash</option>
-                <option value="CARD">Card</option>
+              <select 
+                value={posStore.paymentType} 
+                onChange={(e) => posStore.setField('paymentType', e.target.value)} 
+                className="w-full max-w-xs px-4 py-2.5 rounded-xl border outline-none font-semibold"
+              >
+                <option value="Cash">Cash</option>
+                <option value="Card">Card</option>
                 <option value="UPI">UPI</option>
                 <option value="ADVANCE">Advance Adjust</option>
               </select>
             </div>
-            <div className="w-full md:w-80 space-y-3 p-4 bg-white rounded-xl shadow-inner border border-slate-200">
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">Subtotal</span>
-                <span className="font-bold">₹{calculateSubtotal().toFixed(2)}</span>
+            <div className="w-full md:w-80 space-y-3 p-6 bg-slate-900 text-white rounded-2xl shadow-xl">
+              <div className="flex justify-between text-xs text-slate-400 uppercase tracking-widest font-bold">
+                <span>Subtotal</span>
+                <span>₹{calculateSubtotal().toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-slate-500">GST Amount</span>
-                <span className="font-bold text-amber-600">₹{calculateGST().toFixed(2)}</span>
+              <div className="flex justify-between text-xs text-slate-400 uppercase tracking-widest font-bold">
+                <span>GST Amount</span>
+                <span className="text-amber-400">₹{calculateGST().toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-lg pt-2 border-t font-bold">
-                <span className="text-gray-800">Net Amount</span>
-                <span className="text-primary">₹{calculateNet().toFixed(2)}</span>
+              <div className="border-t border-white/10 pt-3 flex justify-between text-xl font-black">
+                <span className="tracking-tighter uppercase">Net Amount</span>
+                <span className="text-blue-400">₹{calculateNet().toFixed(2)}</span>
               </div>
             </div>
           </div>

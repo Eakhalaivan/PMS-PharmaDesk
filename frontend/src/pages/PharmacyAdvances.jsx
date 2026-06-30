@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Plus, Search, Eye, RotateCcw, IndianRupee } from 'lucide-react';
 import ModuleFilterBar from '../components/ui/ModuleFilterBar';
 import DataTable from '../components/ui/DataTable';
@@ -10,7 +11,15 @@ import pharmacyService from '../utils/pharmacyService';
 import { useBillingStore } from '../store/useBillingStore';
 
 export default function PharmacyAdvances() {
-  const { advancesList, advancesLoading: loading, fetchAdvances } = useBillingStore();
+  const {
+    advancesList,
+    advancesLoading: loading,
+    fetchAdvances
+  } = useBillingStore(useShallow(state => ({
+    advancesList: state.advancesList,
+    advancesLoading: state.advancesLoading,
+    fetchAdvances: state.fetchAdvances
+  })));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedAdvance, setSelectedAdvance] = useState(null);

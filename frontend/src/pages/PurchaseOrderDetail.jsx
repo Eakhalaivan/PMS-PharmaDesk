@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Printer, ArrowLeft, CheckCircle, XCircle, PackageCheck, Loader2 } from 'lucide-react';
 import pharmacyService from '../utils/pharmacyService';
@@ -13,13 +14,19 @@ export default function PurchaseOrderDetail() {
   const navigate = useNavigate();
   const { activeRole } = useAuth();
   
-  const { 
-    selectedPo: po, 
-    poDetailLoading: isLoading, 
+  const {
+    selectedPo: po,
+    poDetailLoading: isLoading,
     poDetailError: isError,
     fetchPoDetail,
     clearPoDetail
-  } = usePurchaseStore();
+  } = usePurchaseStore(useShallow(state => ({
+    selectedPo: state.selectedPo,
+    poDetailLoading: state.poDetailLoading,
+    poDetailError: state.poDetailError,
+    fetchPoDetail: state.fetchPoDetail,
+    clearPoDetail: state.clearPoDetail
+  })));
   
   const [isUpdating, setIsUpdating] = useState(false);
   

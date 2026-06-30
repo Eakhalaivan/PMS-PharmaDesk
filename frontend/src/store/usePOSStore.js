@@ -1,6 +1,12 @@
 import { create } from 'zustand';
+import { devtools, persist, createJSONStorage } from 'zustand/middleware';
+import { immer } from 'zustand/middleware/immer';
 import { toast } from 'react-hot-toast';
 import pharmacyService from '../utils/pharmacyService';
+
+const nameChangeTimers = new Map();
+const abortControllers = new Map();
+let patientSearchTimer = null;
 
 const createEmptyRow = () => ({
   id: Date.now() + Math.random(),
@@ -59,164 +65,188 @@ const getInitialState = () => ({
   saving: false,
 });
 
-export const usePOSStore = create((set) => ({
-  ...getInitialState(),
+export const usePOSStore = create(
+  devtools(
+    persist(
+      immer((set, get) => ({
+        ...getInitialState(),
 
-  // Generic Field Setter
-  setField: (field, value) => set({ [field]: value }),
+        setField: (field, value) => set(state => { state[field] = value; }),
 
-  // Reset the entire form
-  resetForm: () => {
-    Object.values(usePOSStore.getState()._nameChangeTimers || {}).forEach(clearTimeout);
-    set({ ...getInitialState(), _nameChangeTimers: {} });
-  },
+        resetForm: () => {
+          nameChangeTimers.forEach(t => clearTimeout(t));
+          nameChangeTimers.clear();
+          if (patientSearchTimer) clearTimeout(patientSearchTimer);
+          abortControllers.forEach(ctrl => ctrl.abort());
+          abortControllers.clear();
+          
+          set(state => {
+            Object.assign(state, getInitialState());
+          });
+        },
 
-  // Row Management
-  addRow: () => set((state) => ({ rows: [...state.rows, createEmptyRow()] })),
+        addRow: () => set(state => {
+          state.rows.push(createEmptyRow());
+        }),
 
-  removeRow: (idx) => set((state) => {
-    if (state.rows.length === 1) return {};
-    return { rows: state.rows.filter((_, i) => i !== idx) };
-  }),
-
-  resetRow: (idx) => set((state) => {
-    const next = [...state.rows];
-    next[idx] = createEmptyRow();
-    return { rows: next };
-  }),
-
-  // Patient Autocomplete Actions
-  searchPatients: async (query) => {
-    if (query.trim().length < 2) {
-      set({ patientSearchResults: [] });
-      return;
-    }
-    set({ isSearchingPatient: true });
-    try {
-      const res = await pharmacyService.searchPatients(query);
-      const data = res?.data || res || [];
-      set({ 
-        patientSearchResults: Array.isArray(data) ? data : [], 
-        isSearchingPatient: false 
-      });
-    } catch (err) {
-      console.error('Error searching patients:', err);
-      toast.error('Failed to search patient records');
-      set({ patientSearchResults: [], isSearchingPatient: false });
-    }
-  },
-
-  selectPatient: (patient) => set({
-    patientName: patient.name || 'Walk-in',
-    uhid: patient.uhid || '',
-    uhidSearch: patient.name || '',
-    patientSearchResults: []
-  }),
-
-  _nameChangeTimers: {},
-
-  // Handle Typing/Autocomplete Search in Rows
-  handleNameChange: (idx, val) => {
-    // Immediate UI update
-    set((state) => {
-      const next = [...state.rows];
-      next[idx] = { ...next[idx], codeName: val, searchResults: [] };
-      return { rows: next };
-    });
-
-    if (val.trim().length < 2) return;
-
-    // Debounce the API call per row index
-    const timers = usePOSStore.getState()._nameChangeTimers || {};
-    if (timers[idx]) clearTimeout(timers[idx]);
-
-    const timer = setTimeout(async () => {
-      try {
-        const res = await pharmacyService.searchStocks(val);
-        const data = res?.data || res || [];
-        set((state) => {
-          const next = [...state.rows];
-          if (next[idx]) {
-            next[idx] = { 
-              ...next[idx], 
-              searchResults: Array.isArray(data) ? data : [] 
-            };
+        removeRow: (idx) => set(state => {
+          if (state.rows.length === 1) return;
+          if (nameChangeTimers.has(idx)) {
+            clearTimeout(nameChangeTimers.get(idx));
+            nameChangeTimers.delete(idx);
           }
-          return { rows: next };
-        });
-      } catch (err) {
-        console.error('Error searching stock in store:', err);
-        toast.error('Failed to search medicine inventory');
-        set((state) => {
-          const next = [...state.rows];
-          if (next[idx]) {
-            next[idx] = { ...next[idx], searchResults: [] };
+          if (abortControllers.has(`row_${idx}`)) {
+            abortControllers.get(`row_${idx}`).abort();
+            abortControllers.delete(`row_${idx}`);
           }
-          return { rows: next };
-        });
+          state.rows.splice(idx, 1);
+        }),
+
+        resetRow: (idx) => set(state => {
+          state.rows[idx] = createEmptyRow();
+        }),
+
+        searchPatients: (query) => {
+          if (query.trim().length < 2) {
+            set(state => { state.patientSearchResults = []; });
+            return;
+          }
+          
+          if (patientSearchTimer) clearTimeout(patientSearchTimer);
+          
+          patientSearchTimer = setTimeout(async () => {
+            if (abortControllers.has('patient')) {
+              abortControllers.get('patient').abort();
+            }
+            const ctrl = new AbortController();
+            abortControllers.set('patient', ctrl);
+            
+            set(state => { state.isSearchingPatient = true; });
+            try {
+              const res = await pharmacyService.searchPatients(query, { signal: ctrl.signal });
+              const data = res?.data || res || [];
+              set(state => {
+                state.patientSearchResults = Array.isArray(data) ? data : [];
+                state.isSearchingPatient = false;
+              });
+            } catch (err) {
+              if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+              console.error('Error searching patients:', err);
+              toast.error('Failed to search patient records');
+              set(state => {
+                state.patientSearchResults = [];
+                state.isSearchingPatient = false;
+              });
+            }
+          }, 300);
+        },
+
+        selectPatient: (patient) => set(state => {
+          state.patientName = patient.name || 'Walk-in';
+          state.uhid = patient.uhid || '';
+          state.uhidSearch = patient.name || '';
+          state.patientSearchResults = [];
+        }),
+
+        handleNameChange: (idx, val) => {
+          set(state => {
+            if (state.rows[idx]) {
+              state.rows[idx].codeName = val;
+              state.rows[idx].searchResults = [];
+            }
+          });
+
+          if (val.trim().length < 2) return;
+
+          if (nameChangeTimers.has(idx)) {
+            clearTimeout(nameChangeTimers.get(idx));
+          }
+
+          const timer = setTimeout(async () => {
+            if (abortControllers.has(`row_${idx}`)) {
+              abortControllers.get(`row_${idx}`).abort();
+            }
+            const ctrl = new AbortController();
+            abortControllers.set(`row_${idx}`, ctrl);
+
+            try {
+              const res = await pharmacyService.searchStocks(val, { signal: ctrl.signal });
+              const data = res?.data || res || [];
+              set(state => {
+                if (state.rows[idx]) {
+                  state.rows[idx].searchResults = Array.isArray(data) ? data : [];
+                }
+              });
+            } catch (err) {
+              if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
+              console.error('Error searching stock:', err);
+              set(state => {
+                if (state.rows[idx]) {
+                  state.rows[idx].searchResults = [];
+                }
+              });
+            }
+          }, 300);
+
+          nameChangeTimers.set(idx, timer);
+        },
+
+        selectStock: (idx, stock) => set(state => {
+          if (state.rows[idx]) {
+             state.rows[idx].stockId = stock.id;
+             state.rows[idx].codeName = stock.medicine?.name || '';
+             state.rows[idx].genericName = stock.medicine?.genericName || '';
+             state.rows[idx].uom = stock.medicine?.unit || '';
+             state.rows[idx].rack = '';
+             state.rows[idx].totalQty = stock.quantityAvailable || 0;
+             state.rows[idx].batchQty = stock.quantityAvailable || 0;
+             state.rows[idx].batchNo = stock.batchNumber || '';
+             state.rows[idx].expiryDate = stock.expiryDate || '';
+             state.rows[idx].rate = stock.sellingRate || 0;
+             state.rows[idx].gst = stock.medicine?.taxPercentage || 0;
+             state.rows[idx].qty = 1;
+             state.rows[idx].amount = stock.sellingRate || 0;
+             state.rows[idx].searchResults = [];
+          }
+        }),
+
+        updateQty: (idx, val) => set(state => {
+          const qty = parseInt(val) || 0;
+          const row = state.rows[idx];
+          if (!row) return;
+
+          let targetVal = val;
+          let targetQty = qty;
+
+          if (row.stockId && qty > row.totalQty) {
+            toast.error(`Only ${row.totalQty} items available in stock`);
+            targetVal = String(row.totalQty);
+            targetQty = row.totalQty;
+          }
+
+          row.qty = targetVal;
+          row.amount = row.rate * targetQty;
+        }),
+
+        updateRowDiscount: (idx, val) => set(state => {
+          const row = state.rows[idx];
+          if (!row) return;
+          const disc = parseFloat(val) || 0;
+          const baseAmt = row.rate * (parseInt(row.qty) || 0);
+          const discAmt = (baseAmt * disc) / 100;
+          row.discount = val;
+          row.amount = baseAmt - discAmt;
+        }),
+
+      })),
+      {
+        name: 'pos-form',
+        storage: createJSONStorage(() => sessionStorage),
+        partialize: (state) => {
+          const rowsNoSearch = state.rows.map(r => ({ ...r, searchResults: [] }));
+          return { ...state, rows: rowsNoSearch, patientSearchResults: [] };
+        }
       }
-    }, 300);
-
-    set((state) => ({ _nameChangeTimers: { ...(state._nameChangeTimers || {}), [idx]: timer } }));
-  },
-
-  // Select item from Autocomplete
-  selectStock: (idx, stock) => set((state) => {
-    const next = [...state.rows];
-    next[idx] = {
-      ...next[idx],
-      stockId: stock.id,
-      codeName: stock.medicine?.name || '',
-      genericName: stock.medicine?.genericName || '',
-      uom: stock.medicine?.unit || '',
-      rack: '',
-      totalQty: stock.quantityAvailable || 0,
-      batchQty: stock.quantityAvailable || 0,
-      batchNo: stock.batchNumber || '',
-      expiryDate: stock.expiryDate || '',
-      rate: stock.sellingRate || 0,
-      gst: stock.medicine?.taxPercentage || 0,
-      qty: 1,
-      amount: stock.sellingRate || 0,
-      searchResults: [],
-    };
-    return { rows: next };
-  }),
-
-  // Update Item Quantity
-  updateQty: (idx, val) => set((state) => {
-    const next = [...state.rows];
-    const qty = parseInt(val) || 0;
-    const row = next[idx];
-    
-    let targetVal = val;
-    let targetQty = qty;
-
-    if (row.stockId && qty > row.totalQty) {
-      toast.error(`Only ${row.totalQty} items available in stock`);
-      targetVal = String(row.totalQty);
-      targetQty = row.totalQty;
-    }
-
-    next[idx] = { 
-      ...next[idx], 
-      qty: targetVal,
-      amount: next[idx].rate * targetQty 
-    };
-    return { rows: next };
-  }),
-
-  // Update Row-level Discount
-  updateRowDiscount: (idx, val) => set((state) => {
-    const next = [...state.rows];
-    const disc = parseFloat(val) || 0;
-    const baseAmt = next[idx].rate * (parseInt(next[idx].qty) || 0);
-    const discAmt = (baseAmt * disc) / 100;
-    next[idx] = { 
-      ...next[idx], 
-      discount: val, 
-      amount: baseAmt - discAmt 
-    };
-    return { rows: next };
-  }),
-}));
+    )
+  )
+);

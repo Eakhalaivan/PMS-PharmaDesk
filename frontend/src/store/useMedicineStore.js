@@ -3,26 +3,21 @@ import { toast } from 'react-hot-toast';
 import pharmacyService from '../utils/pharmacyService';
 
 const DEBOUNCE_MS = 400;
+let searchTimer = null;
+let abortController = null;
 
 export const useMedicineStore = create((set, get) => ({
-  // Data
   medicines: [],
   totalElements: 0,
   totalPages: 0,
   loading: false,
   error: null,
-
-  // Filters (server-side)
   page: 0,
   pageSize: 20,
   searchTerm: '',
   drugClassFilter: 'ALL',
   scheduleFilter: 'ALL',
 
-  // Internal debounce timer
-  _searchTimer: null,
-
-  // Actions
   setPage: (page) => {
     set({ page });
     get().fetchMedicines();
@@ -35,10 +30,8 @@ export const useMedicineStore = create((set, get) => ({
 
   setSearch: (searchTerm) => {
     set({ searchTerm, page: 0 });
-    const prev = get()._searchTimer;
-    if (prev) clearTimeout(prev);
-    const timer = setTimeout(() => get().fetchMedicines(), DEBOUNCE_MS);
-    set({ _searchTimer: timer });
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => get().fetchMedicines(), DEBOUNCE_MS);
   },
 
   setDrugClassFilter: (drugClassFilter) => {
@@ -53,6 +46,10 @@ export const useMedicineStore = create((set, get) => ({
 
   fetchMedicines: async () => {
     const { page, pageSize, searchTerm, drugClassFilter, scheduleFilter } = get();
+    if (abortController) abortController.abort();
+    const ctrl = new AbortController();
+    abortController = ctrl;
+
     set({ loading: true, error: null });
     try {
       const res = await pharmacyService.getMedicines({
@@ -62,23 +59,25 @@ export const useMedicineStore = create((set, get) => ({
         drugClass: drugClassFilter !== 'ALL' ? drugClassFilter : undefined,
         schedule: scheduleFilter !== 'ALL' ? scheduleFilter : undefined,
       });
+      
+      if (ctrl.signal.aborted) return;
+
       const payload = res?.data ?? res;
-      // Handle Spring Page wrapper or flat array
       if (payload?.content) {
         set({
           medicines: payload.content,
           totalElements: payload.totalElements ?? 0,
           totalPages: payload.totalPages ?? 0,
+          loading: false,
         });
       } else {
         const list = Array.isArray(payload) ? payload : [];
-        set({ medicines: list, totalElements: list.length, totalPages: 1 });
+        set({ medicines: list, totalElements: list.length, totalPages: 1, loading: false });
       }
     } catch (err) {
-      set({ error: 'Failed to load medicines' });
+      if (ctrl.signal.aborted) return;
+      set({ error: 'Failed to load medicines', loading: false });
       toast.error('Failed to load medicines');
-    } finally {
-      set({ loading: false });
     }
   },
 

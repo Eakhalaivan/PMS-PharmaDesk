@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Search, ChevronDown, ChevronRight, AlertTriangle, ShieldAlert, Package, CheckCircle, Printer, Download, Plus, RotateCcw, Box } from 'lucide-react';
 import ModuleFilterBar from '../components/ui/ModuleFilterBar';
 import Pagination from '../components/ui/Pagination';
@@ -9,10 +10,29 @@ import { cn } from '../utils/cn';
 import { useStockStore } from '../store/useStockStore';
 
 export default function MedicineStock() {
-  const { 
-    stocks, medicines, valuation, suppliers, stockLoading: loading, 
-    fetchStocks, adjustStock, addStock, updateReorderConfig, runAutoPO 
-  } = useStockStore();
+  const {
+    stocks,
+    medicines,
+    valuation,
+    suppliers,
+    stockLoading: loading,
+    fetchStocks,
+    adjustStock,
+    addStock,
+    updateReorderConfig,
+    runAutoPO
+  } = useStockStore(useShallow(state => ({
+    stocks: state.stocks,
+    medicines: state.medicines,
+    valuation: state.valuation,
+    suppliers: state.suppliers,
+    stockLoading: state.stockLoading,
+    fetchStocks: state.fetchStocks,
+    adjustStock: state.adjustStock,
+    addStock: state.addStock,
+    updateReorderConfig: state.updateReorderConfig,
+    runAutoPO: state.runAutoPO
+  })));
 
   useEffect(() => {
     fetchStocks();

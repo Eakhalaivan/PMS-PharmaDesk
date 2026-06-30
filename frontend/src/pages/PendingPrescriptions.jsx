@@ -8,7 +8,8 @@ import AppModal from '../components/ui/AppModal';
 import Badge from '../components/ui/Badge';
 import pharmacyService from '../utils/pharmacyService';
 import { toast } from 'react-hot-toast';
-import { useSalesStore } from '../store/useSalesStore';
+import { usePrescriptionStore } from '../store/usePrescriptionStore';
+import { useShallow } from 'zustand/react/shallow';
 
 export default function PendingPrescriptions() {
   const {
@@ -19,7 +20,15 @@ export default function PendingPrescriptions() {
     setPrescriptionsSearch: setSearchTerm,
     setPrescriptionsDateRange: setDateRange,
     fetchPrescriptions
-  } = useSalesStore();
+  } = usePrescriptionStore(useShallow(state => ({
+    prescriptions: state.prescriptions,
+    prescriptionsLoading: state.prescriptionsLoading,
+    prescriptionsSearchTerm: state.prescriptionsSearchTerm,
+    prescriptionsDateRange: state.prescriptionsDateRange,
+    setPrescriptionsSearch: state.setPrescriptionsSearch,
+    setPrescriptionsDateRange: state.setPrescriptionsDateRange,
+    fetchPrescriptions: state.fetchPrescriptions
+  })));
 
   const location = useLocation();
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);

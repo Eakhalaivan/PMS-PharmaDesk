@@ -9,7 +9,8 @@ import Badge from '../components/ui/Badge';
 import { toast } from 'react-hot-toast';
 import pharmacyService from '../utils/pharmacyService';
 import PharmacyInvoice from '../components/pharmacy/PharmacyInvoice';
-import { useSalesStore } from '../store/useSalesStore';
+import { useDirectSalesStore } from '../store/useDirectSalesStore';
+import { useShallow } from 'zustand/react/shallow';
 import { usePOSStore } from '../store/usePOSStore';
 
 export default function DirectPharmacySales() {
@@ -21,9 +22,32 @@ export default function DirectPharmacySales() {
     setDirectSalesSearch: setSearchTerm,
     setDirectSalesDateRange: setDateRange,
     fetchDirectSales: fetchSales
-  } = useSalesStore();
+  } = useDirectSalesStore(useShallow(state => ({
+    directSalesList: state.directSalesList,
+    directSalesLoading: state.directSalesLoading,
+    directSalesSearchTerm: state.directSalesSearchTerm,
+    directSalesDateRange: state.directSalesDateRange,
+    setDirectSalesSearch: state.setDirectSalesSearch,
+    setDirectSalesDateRange: state.setDirectSalesDateRange,
+    fetchDirectSales: state.fetchDirectSales
+  })));
 
-  const posStore = usePOSStore();
+  const posStore = usePOSStore(useShallow(state => ({
+    patientName: state.patientName,
+    doctor: state.doctor,
+    paymentType: state.paymentType,
+    rows: state.rows,
+    patientSearchResults: state.patientSearchResults,
+    setField: state.setField,
+    resetForm: state.resetForm,
+    addRow: state.addRow,
+    removeRow: state.removeRow,
+    searchPatients: state.searchPatients,
+    selectPatient: state.selectPatient,
+    handleNameChange: state.handleNameChange,
+    selectStock: state.selectStock,
+    updateQty: state.updateQty
+  })));
   const location = useLocation();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);

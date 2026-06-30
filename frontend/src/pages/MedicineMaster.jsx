@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import ReactBarcode from 'react-barcode';
 import { Plus, Search, Eye, Edit3, Pill, Save, CheckCircle, Barcode, AlertTriangle, ShieldAlert } from 'lucide-react';
 import ModuleFilterBar from '../components/ui/ModuleFilterBar';
@@ -20,11 +21,42 @@ const CATEGORIES = ['Tablet', 'Capsule', 'Syrup', 'Injection', 'Ointment', 'Drop
 export default function MedicineMaster() {
   // Store — data & filters
   const {
-    medicines, loading, error, totalElements, totalPages, page,
-    searchTerm, drugClassFilter, scheduleFilter,
-    fetchMedicines, setSearch, setPage, setDrugClassFilter, setScheduleFilter,
-    createMedicine, updateMedicine, setPageSize: setStorePageSize
-  } = useMedicineStore();
+    medicines,
+    loading,
+    error,
+    totalElements,
+    totalPages,
+    page,
+    searchTerm,
+    drugClassFilter,
+    scheduleFilter,
+    fetchMedicines,
+    setSearch,
+    setPage,
+    setDrugClassFilter,
+    setScheduleFilter,
+    createMedicine,
+    updateMedicine,
+    setPageSize: setStorePageSize
+  } = useMedicineStore(useShallow(state => ({
+    medicines: state.medicines,
+    loading: state.loading,
+    error: state.error,
+    totalElements: state.totalElements,
+    totalPages: state.totalPages,
+    page: state.page,
+    searchTerm: state.searchTerm,
+    drugClassFilter: state.drugClassFilter,
+    scheduleFilter: state.scheduleFilter,
+    fetchMedicines: state.fetchMedicines,
+    setSearch: state.setSearch,
+    setPage: state.setPage,
+    setDrugClassFilter: state.setDrugClassFilter,
+    setScheduleFilter: state.setScheduleFilter,
+    createMedicine: state.createMedicine,
+    updateMedicine: state.updateMedicine,
+    setPageSize: state.setPageSize
+  })));
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);

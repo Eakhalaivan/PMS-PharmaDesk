@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { AlertTriangle, RefreshCw, Clock } from 'lucide-react';
 import DataTable from '../components/ui/DataTable';
 import Pagination from '../components/ui/Pagination';
@@ -11,16 +12,25 @@ import { useStockStore } from '../store/useStockStore';
 export default function LowStockAlerts() {
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
-  const { 
-    lowStockItems: items, 
-    lowStockLoading: isLoading, 
-    lowStockError: isError, 
-    lowStockFetching: isFetching, 
-    lowStockPage: page, 
-    lowStockTotalElements: totalElements, 
-    setLowStockPage: goToPage, 
-    fetchLowStockAlerts: refetch 
-  } = useStockStore();
+  const {
+    lowStockItems: items,
+    lowStockLoading: isLoading,
+    lowStockError: isError,
+    lowStockFetching: isFetching,
+    lowStockPage: page,
+    lowStockTotalElements: totalElements,
+    setLowStockPage: goToPage,
+    fetchLowStockAlerts: refetch
+  } = useStockStore(useShallow(state => ({
+    lowStockItems: state.lowStockItems,
+    lowStockLoading: state.lowStockLoading,
+    lowStockError: state.lowStockError,
+    lowStockFetching: state.lowStockFetching,
+    lowStockPage: state.lowStockPage,
+    lowStockTotalElements: state.lowStockTotalElements,
+    setLowStockPage: state.setLowStockPage,
+    fetchLowStockAlerts: state.fetchLowStockAlerts
+  })));
 
   // Fetch initially
   useEffect(() => {

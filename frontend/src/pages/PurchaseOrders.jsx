@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Search, Plus, Eye, FileText, CheckCircle, XCircle, Trash2, Edit3, Loader2 } from 'lucide-react';
 import ModuleFilterBar from '../components/ui/ModuleFilterBar';
 import DataTable from '../components/ui/DataTable';
@@ -20,13 +21,34 @@ export default function PurchaseOrders() {
   const { activeRole, user } = useAuth();
   
   const {
-    poList, poLoading: isLoading, poError: isError, poPage: page,
-    poTotalElements: totalElements, poSearchTerm: searchTerm,
-    poStatusFilter: statusFilter, poDateRange: dateRange,
-    setPoSearch: setSearchTerm, setPoStatusFilter: setStatusFilter,
-    setPoDateRange: setDateRange, setPoPage: goToPage,
+    poList,
+    poLoading: isLoading,
+    poError: isError,
+    poPage: page,
+    poTotalElements: totalElements,
+    poSearchTerm: searchTerm,
+    poStatusFilter: statusFilter,
+    poDateRange: dateRange,
+    setPoSearch: setSearchTerm,
+    setPoStatusFilter: setStatusFilter,
+    setPoDateRange: setDateRange,
+    setPoPage: goToPage,
     fetchPurchaseOrders: refetch
-  } = usePurchaseStore();
+  } = usePurchaseStore(useShallow(state => ({
+    poList: state.poList,
+    poLoading: state.poLoading,
+    poError: state.poError,
+    poPage: state.poPage,
+    poTotalElements: state.poTotalElements,
+    poSearchTerm: state.poSearchTerm,
+    poStatusFilter: state.poStatusFilter,
+    poDateRange: state.poDateRange,
+    setPoSearch: state.setPoSearch,
+    setPoStatusFilter: state.setPoStatusFilter,
+    setPoDateRange: state.setPoDateRange,
+    setPoPage: state.setPoPage,
+    fetchPurchaseOrders: state.fetchPurchaseOrders
+  })));
 
   useEffect(() => {
     refetch();

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useLocation } from 'react-router-dom';
 import { Search, CreditCard, Eye, Printer, CheckCircle } from 'lucide-react';
 import ModuleFilterBar from '../components/ui/ModuleFilterBar';
@@ -12,7 +13,15 @@ import { useBillingStore } from '../store/useBillingStore';
 
 export default function MedicineCreditBills() {
   const location = useLocation();
-  const { creditBillsList, creditBillsLoading: loading, fetchCreditBills } = useBillingStore();
+  const {
+    creditBillsList,
+    creditBillsLoading: loading,
+    fetchCreditBills
+  } = useBillingStore(useShallow(state => ({
+    creditBillsList: state.creditBillsList,
+    creditBillsLoading: state.creditBillsLoading,
+    fetchCreditBills: state.fetchCreditBills
+  })));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedBill, setSelectedBill] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState('');

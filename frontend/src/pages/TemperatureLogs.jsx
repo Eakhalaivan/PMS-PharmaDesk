@@ -1,10 +1,27 @@
 import React, { useState, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Thermometer, RefreshCw, AlertTriangle, CheckCircle, Plus, Sparkles, Save } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useTemperatureStore } from '../store/useTemperatureStore';
 
 export default function TemperatureLogs() {
-  const { units, breaches, loading, fetchAll, createUnit, recordTemperature, resolveBreach } = useTemperatureStore();
+  const {
+    units,
+    breaches,
+    loading,
+    fetchAll,
+    createUnit,
+    recordTemperature,
+    resolveBreach
+  } = useTemperatureStore(useShallow(state => ({
+    units: state.units,
+    breaches: state.breaches,
+    loading: state.loading,
+    fetchAll: state.fetchAll,
+    createUnit: state.createUnit,
+    recordTemperature: state.recordTemperature,
+    resolveBreach: state.resolveBreach
+  })));
   const [submitting, setSubmitting] = useState(false);
 
   // New storage unit modal state

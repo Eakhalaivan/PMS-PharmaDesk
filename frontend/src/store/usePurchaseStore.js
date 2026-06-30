@@ -2,6 +2,10 @@ import { create } from 'zustand';
 import pharmacyService from '../utils/pharmacyService';
 import { toast } from 'react-hot-toast';
 
+let searchTimer = null;
+let abortController = null;
+let detailAbortController = null;
+
 export const usePurchaseStore = create((set, get) => ({
   // Purchase Orders State
   poList: [],
@@ -13,19 +17,14 @@ export const usePurchaseStore = create((set, get) => ({
   poSearchTerm: '',
   poStatusFilter: 'ALL',
   poDateRange: { from: null, to: null },
-  _poSearchTimer: null,
 
   setPoSearch: (term) => {
     set({ poSearchTerm: term });
-    const timer = get()._poSearchTimer;
-    if (timer) clearTimeout(timer);
-    
-    set({
-      _poSearchTimer: setTimeout(() => {
-        set({ poPage: 0 });
-        get().fetchPurchaseOrders();
-      }, 400)
-    });
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      set({ poPage: 0 });
+      get().fetchPurchaseOrders();
+    }, 400);
   },
 
   setPoDateRange: (range) => {
@@ -45,6 +44,10 @@ export const usePurchaseStore = create((set, get) => ({
 
   fetchPurchaseOrders: async () => {
     const { poPage, poSearchTerm, poDateRange, poStatusFilter } = get();
+    if (abortController) abortController.abort();
+    const ctrl = new AbortController();
+    abortController = ctrl;
+
     set({ poLoading: true, poError: false });
     try {
       const params = {
@@ -56,7 +59,10 @@ export const usePurchaseStore = create((set, get) => ({
         status: poStatusFilter === 'ALL' ? undefined : poStatusFilter
       };
       
-      const res = await pharmacyService.api.get('/pharmacy/purchase-orders', { params });
+      const res = await pharmacyService.api.get('/pharmacy/purchase-orders', { 
+        params,
+        signal: ctrl.signal
+      });
       
       set({ 
         poList: res.data?.data?.content || [],
@@ -65,6 +71,7 @@ export const usePurchaseStore = create((set, get) => ({
         poLoading: false 
       });
     } catch (err) {
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
       set({ poError: true, poLoading: false });
     }
   },
@@ -75,17 +82,25 @@ export const usePurchaseStore = create((set, get) => ({
   poDetailError: false,
 
   fetchPoDetail: async (poId) => {
+    if (detailAbortController) detailAbortController.abort();
+    const ctrl = new AbortController();
+    detailAbortController = ctrl;
+
     set({ poDetailLoading: true, poDetailError: false });
     try {
-      const res = await pharmacyService.api.get(`/pharmacy/purchase-orders/${poId}`);
+      const res = await pharmacyService.api.get(`/pharmacy/purchase-orders/${poId}`, {
+        signal: ctrl.signal
+      });
       set({ selectedPo: res.data?.data || res.data, poDetailLoading: false });
     } catch (err) {
+      if (err.name === 'CanceledError' || err.code === 'ERR_CANCELED') return;
       set({ poDetailError: true, poDetailLoading: false });
       toast.error('Failed to load purchase order details');
     }
   },
 
   clearPoDetail: () => {
+    if (detailAbortController) detailAbortController.abort();
     set({ selectedPo: null, poDetailLoading: false, poDetailError: false });
   }
 

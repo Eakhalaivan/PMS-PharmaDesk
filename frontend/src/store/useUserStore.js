@@ -3,53 +3,48 @@ import { toast } from 'react-hot-toast';
 import api from '../utils/api';
 
 const POLL_INTERVAL_MS = 30_000;
+let pollTimer = null;
+let abortController = null;
 
 export const useUserStore = create((set, get) => ({
   users: [],
   loading: false,
   error: null,
   searchTerm: '',
-  _pollTimer: null,
 
   setSearch: (searchTerm) => set({ searchTerm }),
 
-  // Derived: filtered client-side (users list is small, no need for server search)
-  filteredUsers: () => {
-    const { users, searchTerm } = get();
-    if (!searchTerm) return users;
-    const s = searchTerm.toLowerCase();
-    return users.filter(u =>
-      u.name?.toLowerCase().includes(s) ||
-      u.username?.toLowerCase().includes(s) ||
-      u.email?.toLowerCase().includes(s)
-    );
-  },
-
   fetchUsers: async () => {
+    if (abortController) abortController.abort();
+    const ctrl = new AbortController();
+    abortController = ctrl;
+
     set({ loading: true, error: null });
     try {
       const res = await api.get('/auth/users');
+      if (ctrl.signal.aborted) return;
       const list = res.data?.data ?? res.data ?? [];
-      set({ users: Array.isArray(list) ? list : [] });
+      set({ users: Array.isArray(list) ? list : [], loading: false });
     } catch {
-      set({ error: 'Failed to load users' });
+      if (ctrl.signal.aborted) return;
+      set({ error: 'Failed to load users', loading: false });
       toast.error('Failed to fetch users');
-    } finally {
-      set({ loading: false });
     }
   },
 
   startPolling: () => {
     get().fetchUsers();
-    const timer = setInterval(() => get().fetchUsers(), POLL_INTERVAL_MS);
-    set({ _pollTimer: timer });
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(() => get().fetchUsers(), POLL_INTERVAL_MS);
   },
 
   stopPolling: () => {
-    const { _pollTimer } = get();
-    if (_pollTimer) {
-      clearInterval(_pollTimer);
-      set({ _pollTimer: null });
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+    if (abortController) {
+      abortController.abort();
     }
   },
 

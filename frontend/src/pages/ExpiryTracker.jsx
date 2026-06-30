@@ -1,10 +1,25 @@
 import React, { useState, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { CalendarX, RefreshCw, AlertTriangle, ArrowLeftRight, Trash2, ShieldAlert } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useExpiryStore } from '../store/useExpiryStore';
 
 export default function ExpiryTracker() {
-  const { batches, summary, returns, loading, fetchAll: fetchExpiryData, initiateReturn } = useExpiryStore();
+  const {
+    batches,
+    summary,
+    returns,
+    loading,
+    fetchAll: fetchExpiryData,
+    initiateReturn
+  } = useExpiryStore(useShallow(state => ({
+    batches: state.batches,
+    summary: state.summary,
+    returns: state.returns,
+    loading: state.loading,
+    fetchAll: state.fetchAll,
+    initiateReturn: state.initiateReturn
+  })));
   const [submitting, setSubmitting] = useState(false);
 
   const [returnQty, setReturnQty] = useState('');

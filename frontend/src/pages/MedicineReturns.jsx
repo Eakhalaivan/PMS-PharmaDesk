@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useLocation } from 'react-router-dom';
 import { Search, Plus, Eye, Printer, RotateCcw, CheckCircle } from 'lucide-react';
 import ModuleFilterBar from '../components/ui/ModuleFilterBar';
@@ -13,7 +14,17 @@ import { useReturnsStore } from '../store/useReturnsStore';
 
 export default function MedicineReturns() {
   const location = useLocation();
-  const { returnsList, loading, fetchReturns, approveReturn } = useReturnsStore();
+  const {
+    returnsList,
+    loading,
+    fetchReturns,
+    approveReturn
+  } = useReturnsStore(useShallow(state => ({
+    returnsList: state.returnsList,
+    loading: state.loading,
+    fetchReturns: state.fetchReturns,
+    approveReturn: state.approveReturn
+  })));
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [billNumber, setBillNumber] = useState('');
   const [selectedBill, setSelectedBill] = useState(null);

@@ -1,11 +1,22 @@
 import React, { useState, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { ShieldCheck, Plus, RefreshCw, CheckCircle, Clock, XCircle, Save } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import pharmacyService from '../utils/pharmacyService';
 import { useBillingStore } from '../store/useBillingStore';
 
 export default function InsuranceClaims() {
-  const { claims, providers, claimsLoading: loading, loadClaimsData: loadData } = useBillingStore();
+  const {
+    claims,
+    providers,
+    claimsLoading: loading,
+    loadClaimsData: loadData
+  } = useBillingStore(useShallow(state => ({
+    claims: state.claims,
+    providers: state.providers,
+    claimsLoading: state.claimsLoading,
+    loadClaimsData: state.loadClaimsData
+  })));
   const [submitting, setSubmitting] = useState(false);
 
   // New claim form state

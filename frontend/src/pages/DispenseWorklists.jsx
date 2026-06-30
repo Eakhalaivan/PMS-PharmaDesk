@@ -7,7 +7,8 @@ import Pagination from '../components/ui/Pagination';
 import AppModal from '../components/ui/AppModal';
 import Badge from '../components/ui/Badge';
 import { toast } from 'react-hot-toast';
-import { useSalesStore } from '../store/useSalesStore';
+import { useWorklistStore } from '../store/useWorklistStore';
+import { useShallow } from 'zustand/react/shallow';
 
 export default function DispenseWorklists() {
   const {
@@ -18,7 +19,15 @@ export default function DispenseWorklists() {
     setWorklistsSearch: setSearchTerm,
     setWorklistsDateRange: setDateRange,
     fetchWorklists: fetchPrescriptions
-  } = useSalesStore();
+  } = useWorklistStore(useShallow(state => ({
+    worklists: state.worklists,
+    worklistsLoading: state.worklistsLoading,
+    worklistsSearchTerm: state.worklistsSearchTerm,
+    worklistsDateRange: state.worklistsDateRange,
+    setWorklistsSearch: state.setWorklistsSearch,
+    setWorklistsDateRange: state.setWorklistsDateRange,
+    fetchWorklists: state.fetchWorklists
+  })));
 
   const location = useLocation();
   const [isModalOpen, setIsModalOpen] = useState(false);

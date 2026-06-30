@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { ArrowLeft, Search, Package, CheckCircle2, AlertCircle, Plus, Trash2, Save } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import pharmacyService from '../utils/pharmacyService';
@@ -12,7 +13,13 @@ const EMPTY_ITEM = {
 };
 
 export default function GRNEntry({ onBack }) {
-  const { suppliers, fetchSuppliers } = useSupplierStore();
+  const {
+    suppliers,
+    fetchSuppliers
+  } = useSupplierStore(useShallow(state => ({
+    suppliers: state.suppliers,
+    fetchSuppliers: state.fetchSuppliers
+  })));
   
   const [poSearch, setPoSearch] = useState('');
   const [po, setPo] = useState(null);

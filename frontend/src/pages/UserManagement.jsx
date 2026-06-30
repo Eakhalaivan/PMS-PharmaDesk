@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Plus, Users, Search, Shield, User, Phone, CheckCircle2, XCircle, Clock, Edit2, Mail, Building2, Calendar, Power, KeyRound, ScrollText } from 'lucide-react';
 import ModuleFilterBar from '../components/ui/ModuleFilterBar';
 import DataTable from '../components/ui/DataTable';
@@ -14,10 +15,26 @@ import { formatDistanceToNow, format } from 'date-fns';
 
 export default function UserManagement() {
   const {
-    users, loading, searchTerm, filteredUsers,
-    setSearch, startPolling, stopPolling,
-    createUser, updateUser, toggleUserStatus,
-  } = useUserStore();
+    users,
+    loading,
+    searchTerm,
+    setSearch,
+    startPolling,
+    stopPolling,
+    createUser,
+    updateUser,
+    toggleUserStatus
+  } = useUserStore(useShallow(state => ({
+    users: state.users,
+    loading: state.loading,
+    searchTerm: state.searchTerm,
+    setSearch: state.setSearch,
+    startPolling: state.startPolling,
+    stopPolling: state.stopPolling,
+    createUser: state.createUser,
+    updateUser: state.updateUser,
+    toggleUserStatus: state.toggleUserStatus
+  })));
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   
@@ -101,7 +118,15 @@ export default function UserManagement() {
     openDrawer(user, 'activity');
   };
 
-  const displayedUsers = filteredUsers();
+  const displayedUsers = useMemo(() => {
+    if (!searchTerm) return users;
+    const s = searchTerm.toLowerCase();
+    return users.filter(u =>
+      u.name?.toLowerCase().includes(s) ||
+      u.username?.toLowerCase().includes(s) ||
+      u.email?.toLowerCase().includes(s)
+    );
+  }, [users, searchTerm]);
 
   const formatTimestamp = (ts) => {
     if (!ts) return null;

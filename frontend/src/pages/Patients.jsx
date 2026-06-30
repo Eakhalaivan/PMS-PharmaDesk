@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { Plus, Search, Users, Trash2, Edit3, Save, XCircle, Phone, MapPin, CreditCard, User, Calendar, History } from 'lucide-react';
 import ModuleFilterBar from '../components/ui/ModuleFilterBar';
 import DataTable from '../components/ui/DataTable';
@@ -10,9 +11,24 @@ import { usePatientStore } from '../store/usePatientStore';
 
 export default function Patients() {
   const {
-    patients, loading, searchTerm, filteredPatients,
-    setSearch, fetchPatients, createPatient, updatePatient, deletePatient
-  } = usePatientStore();
+    patients,
+    loading,
+    searchTerm,
+    setSearch,
+    fetchPatients,
+    createPatient,
+    updatePatient,
+    deletePatient
+  } = usePatientStore(useShallow(state => ({
+    patients: state.patients,
+    loading: state.loading,
+    searchTerm: state.searchTerm,
+    setSearch: state.setSearch,
+    fetchPatients: state.fetchPatients,
+    createPatient: state.createPatient,
+    updatePatient: state.updatePatient,
+    deletePatient: state.deletePatient
+  })));
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -89,7 +105,14 @@ export default function Patients() {
     setSelectedPatient(null);
   };
 
-  const displayedPatients = filteredPatients();
+  const displayedPatients = useMemo(() => {
+    if (!searchTerm) return patients;
+    const s = searchTerm.toLowerCase();
+    return patients.filter(p => 
+      p.name?.toLowerCase().includes(s) || 
+      p.uhid?.toLowerCase().includes(s)
+    );
+  }, [patients, searchTerm]);
 
   const columns = [
     { header: 'S.No', render: (_, i) => i + 1 },

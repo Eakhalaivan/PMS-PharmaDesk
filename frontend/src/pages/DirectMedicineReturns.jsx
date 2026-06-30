@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useLocation } from 'react-router-dom';
 import { Search, Plus, Eye, Printer, RotateCcw, CheckCircle } from 'lucide-react';
 import ModuleFilterBar from '../components/ui/ModuleFilterBar';
@@ -13,7 +14,15 @@ import { useReturnsStore } from '../store/useReturnsStore';
 
 export default function DirectMedicineReturns() {
   const location = useLocation();
-  const { returnsList: allReturnsList, loading, fetchReturns } = useReturnsStore();
+  const {
+    returnsList: allReturnsList,
+    loading,
+    fetchReturns
+  } = useReturnsStore(useShallow(state => ({
+    returnsList: state.returnsList,
+    loading: state.loading,
+    fetchReturns: state.fetchReturns
+  })));
   const returnsList = allReturnsList.filter(ret => ret.originalBill?.billType === 'OTC');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [billNumber, setBillNumber] = useState('');

@@ -9,9 +9,7 @@ import RoleGuard from './components/auth/RoleGuard';
 import { ROLES, DASHBOARD_ROUTES, getBaseRoleForUI } from './config/roles.config';
 import { useAuth } from './context/AuthContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SystemProvider } from './context/SystemContext';
-import { LookupProvider } from './context/LookupContext';
-import { ConfigProvider } from './context/ConfigContext';
+import ErrorBoundary from './components/ui/ErrorBoundary';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -120,14 +118,12 @@ const LoadingFallback = () => (
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ConfigProvider>
-        <SystemProvider>
-          <LookupProvider>
-            <AuthProvider>
+      <AuthProvider>
               <BrowserRouter>
                 <Toaster position="top-right" reverseOrder={false} />
-                <Suspense fallback={<LoadingFallback />}>
-                  <Routes>
+                <ErrorBoundary>
+                  <Suspense fallback={<LoadingFallback />}>
+                    <Routes>
             {/* Public route */}
             <Route path="/login" element={<LoginPage />} />
 
@@ -304,14 +300,11 @@ function App() {
 
             {/* Redirects */}
 
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </BrowserRouter>
+                    </Routes>
+                  </Suspense>
+                </ErrorBoundary>
+              </BrowserRouter>
             </AuthProvider>
-          </LookupProvider>
-        </SystemProvider>
-      </ConfigProvider>
     </QueryClientProvider>
   );
 }

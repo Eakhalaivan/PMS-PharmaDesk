@@ -42,7 +42,7 @@ public interface PharmacyBillRepository extends JpaRepository<PharmacyBill, Long
                                    @Param("toDate") LocalDateTime toDate, 
                                    Pageable pageable);
 
-    @Query("SELECT SUM(b.netAmount) FROM PharmacyBill b WHERE b.billingDate BETWEEN :start AND :end AND b.deleted = false")
+    @Query("SELECT COALESCE(SUM(b.netAmount), 0) FROM PharmacyBill b WHERE b.billingDate BETWEEN :start AND :end AND b.deleted = false AND b.status = 'PAID'")
     java.math.BigDecimal sumNetAmountByBillingDateBetween(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     @Query("SELECT COUNT(b) FROM PharmacyBill b WHERE b.billingDate BETWEEN :start AND :end AND b.deleted = false")

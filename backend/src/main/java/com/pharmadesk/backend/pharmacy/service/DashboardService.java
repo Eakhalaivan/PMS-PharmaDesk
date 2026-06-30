@@ -7,8 +7,7 @@ import com.pharmadesk.backend.pharmacy.enums.ReturnStatus;
 import com.pharmadesk.backend.pharmacy.repository.*;
 import com.pharmadesk.backend.sales.repository.*;
 import com.pharmadesk.backend.repository.UserRepository;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.CacheEvict;
+
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,9 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import com.pharmadesk.backend.sales.model.PharmacyBill;
 import java.util.stream.Collectors;
 
 @Service
@@ -52,7 +53,6 @@ public class DashboardService {
         this.purchaseOrderRepository = purchaseOrderRepository;
     }
 
-    @Cacheable(value = "dashboardKpis", key = "#role", unless = "#result == null")
     public DashboardKpiDTO buildKpisForRole(String role) {
         return switch (role) {
             case "SYSTEM_ADMIN", "SUPERVISOR" -> buildAdminKpis();
@@ -138,24 +138,33 @@ public class DashboardService {
         LocalDateTime from = LocalDate.now().minusDays(days - 1).atStartOfDay();
         LocalDateTime to = LocalDate.now().atTime(23, 59, 59);
         
-        return billRepository.findByBillingDateBetween(from, to).stream()
-                .collect(Collectors.groupingBy(b -> b.getBillingDate().toLocalDate()))
-                .entrySet().stream()
-                .sorted(Map.Entry.comparingByKey())
-                .map(e -> {
-                    BigDecimal dailyRevenue = e.getValue().stream()
-                            .map(b -> b.getNetAmount() != null ? b.getNetAmount() : BigDecimal.ZERO)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add);
-                    return new ChartDataPointDTO(
-                            e.getKey().getDayOfWeek().name().substring(0, 3), 
-                            dailyRevenue, 
-                            BigDecimal.valueOf(e.getValue().size())
-                    );
-                })
-                .collect(Collectors.toList());
+        Map<LocalDate, BigDecimal> dailyTotals = billRepository.findByBillingDateBetween(from, to).stream()
+                .filter(b -> "PAID".equals(b.getStatus()))
+                .collect(Collectors.groupingBy(
+                        b -> b.getBillingDate().toLocalDate(),
+                        Collectors.mapping(
+                                PharmacyBill::getNetAmount,
+                                Collectors.reducing(BigDecimal.ZERO, BigDecimal::add)
+                        )
+                ));
+
+        List<ChartDataPointDTO> chartData = new ArrayList<>();
+        LocalDate currentDate = from.toLocalDate();
+        LocalDate endDate = to.toLocalDate();
+        
+        while (!currentDate.isAfter(endDate)) {
+            BigDecimal total = dailyTotals.getOrDefault(currentDate, BigDecimal.ZERO);
+            chartData.add(new ChartDataPointDTO(
+                currentDate.format(DateTimeFormatter.ofPattern("MMM dd")),
+                total,
+                BigDecimal.ZERO
+            ));
+            currentDate = currentDate.plusDays(1);
+        }
+        
+        return chartData;
     }
 
-    @Cacheable(value = "dashboardAlerts", key = "'alerts'")
     public List<SystemAlertDTO> getAlerts() {
         List<SystemAlertDTO> alerts = new ArrayList<>();
         
@@ -179,7 +188,6 @@ public class DashboardService {
         return alerts;
     }
 
-    @Cacheable(value = "revenueStrip", key = "'strip'")
     public RevenueStripDTO getRevenueStrip() {
         LocalDateTime todayStart = LocalDate.now().atStartOfDay();
         LocalDateTime todayEnd = LocalDate.now().atTime(23, 59, 59);
@@ -196,8 +204,7 @@ public class DashboardService {
             monthsTotal != null ? monthsTotal : BigDecimal.ZERO
         );
     }
-
-    @Scheduled(fixedRate = 120_000)
-    @CacheEvict(value = {"dashboardKpis", "revenueStrip", "dashboardAlerts"}, allEntries = true)
-    public void evictDashboardCaches() {}
 }
+
+
+

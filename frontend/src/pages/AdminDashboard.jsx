@@ -329,11 +329,11 @@ export default function AdminDashboard() {
 
   const config = ROLE_CONFIG[activeRole] || ROLE_CONFIG.SYSTEM_ADMIN;
 
-  const { data: summaryData, isLoading: summaryLoading } = useQuery({
+    const { data: summaryData, isLoading: summaryLoading } = useQuery({
     queryKey: ['dashboard-summary', activeRole],
     queryFn: () => api.get(`/pharmacy/dashboard/summary?days=7`).then(r => r.data?.data ?? {}),
-    staleTime: 60_000,
-    refetchInterval: 120_000,
+    staleTime: 2000,
+    refetchInterval: 5000,
     enabled: !!activeRole
   });
 
